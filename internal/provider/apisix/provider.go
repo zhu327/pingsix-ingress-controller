@@ -110,10 +110,10 @@ func (d *apisixProvider) Update(ctx context.Context, tctx *provider.TranslateCon
 	case *gatewayv1.HTTPRoute:
 		result, err = d.translator.TranslateHTTPRoute(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeService)
-	case *gatewayv1alpha2.TCPRoute:
+	case *gatewayv1alpha2.TCPRoute: // TODO: pingsix do not support
 		result, err = d.translator.TranslateTCPRoute(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeService)
-	case *gatewayv1alpha2.UDPRoute:
+	case *gatewayv1alpha2.UDPRoute: // TODO: pingsix do not support
 		result, err = d.translator.TranslateUDPRoute(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeService)
 	case *gatewayv1alpha2.TLSRoute:
@@ -124,16 +124,16 @@ func (d *apisixProvider) Update(ctx context.Context, tctx *provider.TranslateCon
 		resourceTypes = append(resourceTypes, adctypes.TypeService)
 	case *gatewayv1.Gateway:
 		result, err = d.translator.TranslateGateway(tctx, t.DeepCopy())
-		resourceTypes = append(resourceTypes, adctypes.TypeGlobalRule, adctypes.TypeSSL, adctypes.TypePluginMetadata)
+		resourceTypes = append(resourceTypes, adctypes.TypeGlobalRule, adctypes.TypeSSL, adctypes.TypePluginMetadata) // TODO: pingsix do not support plugin metadata
 	case *networkingv1.Ingress:
 		result, err = d.translator.TranslateIngress(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeService, adctypes.TypeSSL)
-	case *v1alpha1.Consumer:
+	case *v1alpha1.Consumer: // TODO: pingsix do not support
 		result, err = d.translator.TranslateConsumerV1alpha1(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeConsumer)
 	case *networkingv1.IngressClass:
 		result, err = d.translator.TranslateIngressClass(tctx, t.DeepCopy())
-		resourceTypes = append(resourceTypes, adctypes.TypeGlobalRule, adctypes.TypePluginMetadata)
+		resourceTypes = append(resourceTypes, adctypes.TypeGlobalRule, adctypes.TypePluginMetadata) // TODO: pingsix do not support plugin metadata
 	case *apiv2.ApisixRoute:
 		result, err = d.translator.TranslateApisixRoute(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeService)
@@ -143,7 +143,7 @@ func (d *apisixProvider) Update(ctx context.Context, tctx *provider.TranslateCon
 	case *apiv2.ApisixTls:
 		result, err = d.translator.TranslateApisixTls(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeSSL)
-	case *apiv2.ApisixConsumer:
+	case *apiv2.ApisixConsumer: // TODO: pingsix do not support
 		result, err = d.translator.TranslateApisixConsumer(tctx, t.DeepCopy())
 		resourceTypes = append(resourceTypes, adctypes.TypeConsumer)
 	case *v1alpha1.GatewayProxy:
@@ -200,7 +200,7 @@ func (d *apisixProvider) Delete(ctx context.Context, obj client.Object) error {
 	case *networkingv1.Ingress:
 		resourceTypes = append(resourceTypes, adctypes.TypeService, adctypes.TypeSSL)
 		labels = label.GenLabel(obj)
-	case *v1alpha1.Consumer:
+	case *v1alpha1.Consumer: // TODO: pingsix do not support
 		resourceTypes = append(resourceTypes, adctypes.TypeConsumer)
 		labels = label.GenLabel(obj)
 	case *networkingv1.IngressClass:
@@ -211,7 +211,7 @@ func (d *apisixProvider) Delete(ctx context.Context, obj client.Object) error {
 	case *apiv2.ApisixTls:
 		resourceTypes = append(resourceTypes, adctypes.TypeSSL)
 		labels = label.GenLabel(obj)
-	case *apiv2.ApisixConsumer:
+	case *apiv2.ApisixConsumer: // TODO: pingsix do not support
 		resourceTypes = append(resourceTypes, adctypes.TypeConsumer)
 		labels = label.GenLabel(obj)
 	}

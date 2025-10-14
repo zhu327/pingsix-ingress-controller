@@ -630,8 +630,8 @@ func NewDefaultStreamRoute() *StreamRoute {
 const (
 	PluginProxyRewrite    string = "proxy-rewrite"
 	PluginRedirect        string = "redirect"
-	PluginResponseRewrite string = "response-rewrite"
-	PluginProxyMirror     string = "proxy-mirror"
+	PluginResponseRewrite string = "response-rewrite" // TODO: pingsix do not support
+	PluginProxyMirror     string = "proxy-mirror"     // TODO: pingsix do not support
 	PluginCORS            string = "cors"
 )
 

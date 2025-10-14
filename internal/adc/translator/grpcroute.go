@@ -43,9 +43,9 @@ func (t *Translator) fillPluginsFromGRPCRouteFilters(
 		switch filter.Type {
 		case gatewayv1.GRPCRouteFilterRequestHeaderModifier:
 			t.fillPluginFromHTTPRequestHeaderFilter(plugins, filter.RequestHeaderModifier)
-		case gatewayv1.GRPCRouteFilterRequestMirror:
+		case gatewayv1.GRPCRouteFilterRequestMirror: // TODO: pingsix do not support
 			t.fillPluginFromHTTPRequestMirrorFilter(plugins, namespace, filter.RequestMirror, apiv2.SchemeGRPC)
-		case gatewayv1.GRPCRouteFilterResponseHeaderModifier:
+		case gatewayv1.GRPCRouteFilterResponseHeaderModifier: // TODO: pingsix do not support
 			t.fillPluginFromHTTPResponseHeaderFilter(plugins, filter.ResponseHeaderModifier)
 		case gatewayv1.GRPCRouteFilterExtensionRef:
 			t.fillPluginFromExtensionRef(plugins, namespace, filter.ExtensionRef, tctx)

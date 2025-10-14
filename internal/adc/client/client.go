@@ -61,9 +61,17 @@ func New(log logr.Logger, mode string, timeout time.Duration) (*Client, error) {
 	logger := log.WithName("client")
 	logger.Info("ADC client initialized", "mode", mode)
 
+	var executor ADCExecutor
+	// support pingsix mode
+	if mode == "pingsix" {
+		executor = NewKindExecutor(log)
+	} else {
+		executor = NewHTTPADCExecutor(log, serverURL, timeout)
+	}
+
 	return &Client{
 		Store:            store,
-		executor:         NewHTTPADCExecutor(log, serverURL, timeout),
+		executor:         executor,
 		BackendMode:      mode,
 		ConfigManager:    configManager,
 		ADCDebugProvider: common.NewADCDebugProvider(store, configManager),

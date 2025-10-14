@@ -38,4 +38,13 @@ func init() {
 			opts = append(opts, provider.WithResolveEndpoints())
 			return apisix.New(log, statusUpdater, readinessManager, opts...)
 		})
+	provider.Register("pingsix",
+		func(log logr.Logger,
+			statusUpdater status.Updater,
+			readinessManager readiness.ReadinessManager,
+			opts ...provider.Option,
+		) (provider.Provider, error) {
+			opts = append(opts, provider.WithBackendMode("pingsix"))
+			return apisix.New(log, statusUpdater, readinessManager, opts...)
+		})
 }

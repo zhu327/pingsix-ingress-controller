@@ -128,7 +128,7 @@ func setupControllers(ctx context.Context, mgr manager.Manager, pro provider.Pro
 			Updater:  updater,
 			Readier:  readier,
 		},
-		&controller.TCPRouteReconciler{
+		&controller.TCPRouteReconciler{ // TODO: pingsix do not support
 			Client:   mgr.GetClient(),
 			Scheme:   mgr.GetScheme(),
 			Log:      ctrl.LoggerFrom(ctx).WithName("controllers").WithName(types.KindTCPRoute),
@@ -136,7 +136,7 @@ func setupControllers(ctx context.Context, mgr manager.Manager, pro provider.Pro
 			Updater:  updater,
 			Readier:  readier,
 		},
-		&controller.UDPRouteReconciler{
+		&controller.UDPRouteReconciler{ // TODO: pingsix do not support
 			Client:   mgr.GetClient(),
 			Scheme:   mgr.GetScheme(),
 			Log:      ctrl.LoggerFrom(ctx).WithName("controllers").WithName(types.KindUDPRoute),
@@ -168,7 +168,7 @@ func setupControllers(ctx context.Context, mgr manager.Manager, pro provider.Pro
 			Updater:  updater,
 			Readier:  readier,
 		},
-		&controller.ConsumerReconciler{
+		&controller.ConsumerReconciler{ // TODO: pingsix do not support
 			Client:   mgr.GetClient(),
 			Scheme:   mgr.GetScheme(),
 			Log:      ctrl.LoggerFrom(ctx).WithName("controllers").WithName(types.KindConsumer),
@@ -176,7 +176,7 @@ func setupControllers(ctx context.Context, mgr manager.Manager, pro provider.Pro
 			Updater:  updater,
 			Readier:  readier,
 		},
-		&controller.IngressClassReconciler{
+		&controller.IngressClassReconciler{ // TODO: pingsix do not support
 			Client:   mgr.GetClient(),
 			Scheme:   mgr.GetScheme(),
 			Log:      ctrl.LoggerFrom(ctx).WithName("controllers").WithName(types.KindIngressClass),
@@ -198,7 +198,7 @@ func setupControllers(ctx context.Context, mgr manager.Manager, pro provider.Pro
 			Updater:  updater,
 			Readier:  readier,
 		},
-		&controller.ApisixConsumerReconciler{
+		&controller.ApisixConsumerReconciler{ // TODO: pingsix do not support
 			Client:   mgr.GetClient(),
 			Scheme:   mgr.GetScheme(),
 			Log:      ctrl.LoggerFrom(ctx).WithName("controllers").WithName(types.KindApisixConsumer),

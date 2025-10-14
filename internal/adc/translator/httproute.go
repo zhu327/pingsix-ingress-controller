@@ -45,16 +45,15 @@ func (t *Translator) fillPluginsFromHTTPRouteFilters(
 	matches []gatewayv1.HTTPRouteMatch,
 	tctx *provider.TranslateContext,
 ) {
-	// TODO: 梳理下pingsix支持哪些, 不支持哪些, 有一些插件相关的配置是否支持, 需要改动
 	for _, filter := range filters {
 		switch filter.Type {
 		case gatewayv1.HTTPRouteFilterRequestHeaderModifier:
 			t.fillPluginFromHTTPRequestHeaderFilter(plugins, filter.RequestHeaderModifier)
 		case gatewayv1.HTTPRouteFilterRequestRedirect:
 			t.fillPluginFromHTTPRequestRedirectFilter(plugins, filter.RequestRedirect)
-		case gatewayv1.HTTPRouteFilterRequestMirror:
+		case gatewayv1.HTTPRouteFilterRequestMirror: // TODO: pingsix do not support
 			t.fillPluginFromHTTPRequestMirrorFilter(plugins, namespace, filter.RequestMirror, apiv2.SchemeHTTP)
-		case gatewayv1.HTTPRouteFilterURLRewrite:
+		case gatewayv1.HTTPRouteFilterURLRewrite: // TODO: pingsix do not support
 			t.fillPluginFromURLRewriteFilter(plugins, filter.URLRewrite, matches)
 		case gatewayv1.HTTPRouteFilterResponseHeaderModifier: // TODO: pingsix do not support
 			t.fillPluginFromHTTPResponseHeaderFilter(plugins, filter.ResponseHeaderModifier)
