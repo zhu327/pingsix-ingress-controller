@@ -351,14 +351,14 @@ func (t *Translator) translateGatewayGRPCRouteMatch(match *gatewayv1.GRPCRouteMa
 func (t *Translator) translateGRPCURI(service, method string) string {
 	var uri string
 	if service == "" {
-		uri = "/*"
+		uri = "/{*p}"
 	} else {
 		uri = fmt.Sprintf("/%s", service)
 	}
 	if method != "" {
 		uri = uri + fmt.Sprintf("/%s", method)
 	} else if service != "" {
-		uri = uri + "/*"
+		uri = uri + "/{*p}"
 	}
 	return uri
 }

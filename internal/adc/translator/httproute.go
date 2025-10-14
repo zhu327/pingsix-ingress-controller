@@ -45,6 +45,7 @@ func (t *Translator) fillPluginsFromHTTPRouteFilters(
 	matches []gatewayv1.HTTPRouteMatch,
 	tctx *provider.TranslateContext,
 ) {
+	// TODO: 梳理下pingsix支持哪些, 不支持哪些, 有一些插件相关的配置是否支持, 需要改动
 	for _, filter := range filters {
 		switch filter.Type {
 		case gatewayv1.HTTPRouteFilterRequestHeaderModifier:
@@ -55,7 +56,7 @@ func (t *Translator) fillPluginsFromHTTPRouteFilters(
 			t.fillPluginFromHTTPRequestMirrorFilter(plugins, namespace, filter.RequestMirror, apiv2.SchemeHTTP)
 		case gatewayv1.HTTPRouteFilterURLRewrite:
 			t.fillPluginFromURLRewriteFilter(plugins, filter.URLRewrite, matches)
-		case gatewayv1.HTTPRouteFilterResponseHeaderModifier:
+		case gatewayv1.HTTPRouteFilterResponseHeaderModifier: // TODO: pingsix do not support
 			t.fillPluginFromHTTPResponseHeaderFilter(plugins, filter.ResponseHeaderModifier)
 		case gatewayv1.HTTPRouteFilterExtensionRef:
 			t.fillPluginFromExtensionRef(plugins, namespace, filter.ExtensionRef, tctx)
@@ -634,7 +635,7 @@ func (t *Translator) TranslateHTTPRoute(tctx *provider.TranslateContext, httpRou
 				if service.Plugins == nil {
 					service.Plugins = make(map[string]any)
 				}
-				service.Plugins["traffic-split"] = &adctypes.TrafficSplitConfig{
+				service.Plugins["traffic-split"] = &adctypes.TrafficSplitConfig{ // TODO: pingsix do not support traffic-split
 					Rules: []adctypes.TrafficSplitConfigRule{
 						{
 							WeightedUpstreams: weightedUpstreams,
@@ -648,7 +649,7 @@ func (t *Translator) TranslateHTTPRoute(tctx *provider.TranslateContext, httpRou
 			if service.Plugins == nil {
 				service.Plugins = make(map[string]any)
 			}
-			service.Plugins["fault-injection"] = map[string]any{
+			service.Plugins["fault-injection"] = map[string]any{ // TODO: pingsix do not support fault-injection
 				"abort": map[string]any{
 					"http_status": 500,
 					"body":        "No existing backendRef provided",
@@ -656,6 +657,7 @@ func (t *Translator) TranslateHTTPRoute(tctx *provider.TranslateContext, httpRou
 			}
 		}
 
+		// TODO: pingsix plugin part support
 		t.fillPluginsFromHTTPRouteFilters(service.Plugins, httpRoute.GetNamespace(), rule.Filters, rule.Matches, tctx)
 
 		matches := rule.Matches
@@ -691,7 +693,7 @@ func (t *Translator) TranslateHTTPRoute(tctx *provider.TranslateContext, httpRou
 
 			routes = append(routes, route)
 		}
-		t.fillHTTPRoutePoliciesForHTTPRoute(tctx, routes, rule)
+		t.fillHTTPRoutePoliciesForHTTPRoute(tctx, routes, rule) // TODO: pingsix do not support
 		service.Routes = routes
 
 		result.Services = append(result.Services, service)
@@ -712,11 +714,11 @@ func (t *Translator) translateGatewayHTTPRouteMatch(match *gatewayv1.HTTPRouteMa
 			route.Uris = []string{pathValue}
 
 			if strings.HasSuffix(pathValue, "/") {
-				route.Uris = append(route.Uris, pathValue+"*")
+				route.Uris = append(route.Uris, pathValue+"{*p}")
 			} else {
-				route.Uris = append(route.Uris, pathValue+"/*")
+				route.Uris = append(route.Uris, pathValue+"/{*p}")
 			}
-		case gatewayv1.PathMatchRegularExpression:
+		case gatewayv1.PathMatchRegularExpression: // TODO: pingsix do not support
 			var this []adctypes.StringOrSlice
 			this = append(this, adctypes.StringOrSlice{
 				StrVal: "uri",
@@ -736,10 +738,10 @@ func (t *Translator) translateGatewayHTTPRouteMatch(match *gatewayv1.HTTPRouteMa
 		/* If no matches are specified, the default is a prefix
 		path match on "/", which has the effect of matching every
 		HTTP request. */
-		route.Uris = []string{"/", "/*"}
+		route.Uris = []string{"/", "/{*p}"}
 	}
 
-	if len(match.Headers) > 0 {
+	if len(match.Headers) > 0 { // TODO: pingsix do not support
 		for _, header := range match.Headers {
 			this, err := t.translateHTTPRouteHeaderMatchToVars(header)
 			if err != nil {
@@ -749,7 +751,7 @@ func (t *Translator) translateGatewayHTTPRouteMatch(match *gatewayv1.HTTPRouteMa
 		}
 	}
 
-	if len(match.QueryParams) > 0 {
+	if len(match.QueryParams) > 0 { // TODO: pingsix do not support
 		for _, query := range match.QueryParams {
 			var this []adctypes.StringOrSlice
 			this = append(this, adctypes.StringOrSlice{
