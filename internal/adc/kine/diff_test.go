@@ -67,10 +67,10 @@ func TestDiffer_DiffRoutes(t *testing.T) {
 
 	// Perform diff
 	opts := &DiffOptions{
-		KindSelector: &KindLabelSelector{
-			Kind:      "ApisixRoute",
-			Namespace: "default",
-			Name:      "test",
+		Labels: map[string]string{
+			"k8s/kind":      "ApisixRoute",
+			"k8s/namespace": "default",
+			"k8s/name":      "test",
 		},
 	}
 
@@ -134,10 +134,10 @@ func TestDiffer_DiffServices(t *testing.T) {
 	}
 
 	opts := &DiffOptions{
-		KindSelector: &KindLabelSelector{
-			Kind:      "Service",
-			Namespace: "default",
-			Name:      "test",
+		Labels: map[string]string{
+			"k8s/kind":      "Service",
+			"k8s/namespace": "default",
+			"k8s/name":      "test",
 		},
 	}
 
