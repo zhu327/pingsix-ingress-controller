@@ -229,7 +229,9 @@ func TestConvertUpstreamType(t *testing.T) {
 		expected SelectionType
 	}{
 		{adc.Roundrobin, SelectionTypeRoundRobin},
+		{adc.Random, SelectionTypeRandom},
 		{adc.Chash, SelectionTypeFnv},
+		{adc.Ketama, SelectionTypeKetama},
 		{adc.LeastConn, SelectionTypeRoundRobin},
 		{adc.Ewma, SelectionTypeRoundRobin},
 	}
@@ -698,6 +700,67 @@ func TestTransferSSLNil(t *testing.T) {
 	_, err := TransferSSL(nil)
 	if err == nil {
 		t.Error("Expected error for nil SSL")
+	}
+}
+
+func TestTransferSSLClientCertificate(t *testing.T) {
+	// Test with client certificate - should be ignored (return nil, nil)
+	clientType := adc.Client
+	adcSSL := &adc.SSL{
+		Metadata: adc.Metadata{
+			ID:   "client-cert-id",
+			Name: "client-cert",
+		},
+		Type: &clientType,
+		Certificates: []adc.Certificate{
+			{
+				Certificate: "-----BEGIN CERTIFICATE-----\nclient-cert\n-----END CERTIFICATE-----",
+				Key:         "-----BEGIN PRIVATE KEY-----\nclient-key\n-----END PRIVATE KEY-----",
+			},
+		},
+		Snis: []string{"client.example.com"},
+	}
+
+	kineSSLs, err := TransferSSL(adcSSL)
+	if err != nil {
+		t.Fatalf("TransferSSL should not fail for client certificate: %v", err)
+	}
+
+	if kineSSLs != nil {
+		t.Errorf("Expected nil result for client certificate, got %d SSLs", len(kineSSLs))
+	}
+}
+
+func TestTransferSSLServerCertificate(t *testing.T) {
+	// Test with explicit server certificate - should work normally
+	serverType := adc.Server
+	adcSSL := &adc.SSL{
+		Metadata: adc.Metadata{
+			ID:   "server-cert-id",
+			Name: "server-cert",
+		},
+		Type: &serverType,
+		Certificates: []adc.Certificate{
+			{
+				Certificate: "-----BEGIN CERTIFICATE-----\nserver-cert\n-----END CERTIFICATE-----",
+				Key:         "-----BEGIN PRIVATE KEY-----\nserver-key\n-----END PRIVATE KEY-----",
+			},
+		},
+		Snis: []string{"server.example.com"},
+	}
+
+	kineSSLs, err := TransferSSL(adcSSL)
+	if err != nil {
+		t.Fatalf("TransferSSL failed: %v", err)
+	}
+
+	if len(kineSSLs) != 1 {
+		t.Fatalf("Expected 1 SSL for server certificate, got %d", len(kineSSLs))
+	}
+
+	kineSSL := kineSSLs[0]
+	if kineSSL.ID != "server-cert-id" {
+		t.Errorf("Expected SSL ID 'server-cert-id', got '%s'", kineSSL.ID)
 	}
 }
 

@@ -351,6 +351,10 @@ const (
 	Ewma       UpstreamType = "ewma"
 	LeastConn  UpstreamType = "least_conn"
 	Roundrobin UpstreamType = "roundrobin"
+
+	// NOTE: only supported by PingSIX
+	Ketama UpstreamType = "ketama"
+	Random UpstreamType = "random"
 )
 
 type SSLProtocol string

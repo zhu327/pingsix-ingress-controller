@@ -648,7 +648,7 @@ func (t *Translator) TranslateHTTPRoute(tctx *provider.TranslateContext, httpRou
 			if service.Plugins == nil {
 				service.Plugins = make(map[string]any)
 			}
-			service.Plugins["fault-injection"] = map[string]any{ // TODO: pingsix do not support fault-injection
+			service.Plugins["fault-injection"] = map[string]any{
 				"abort": map[string]any{
 					"http_status": 500,
 					"body":        "No existing backendRef provided",
