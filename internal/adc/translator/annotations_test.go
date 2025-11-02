@@ -19,8 +19,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/incubator4/go-resty-expr/expr"
 	"github.com/stretchr/testify/assert"
 
+	adctypes "github.com/apache/apisix-ingress-controller/api/adc"
 	"github.com/apache/apisix-ingress-controller/internal/adc/translator/annotations"
 	"github.com/apache/apisix-ingress-controller/internal/adc/translator/annotations/upstream"
 )
@@ -157,6 +159,123 @@ func TestTranslateIngressAnnotations(t *testing.T) {
 					TimeoutRead: 5,
 					Scheme:      "http",
 					Retries:     2,
+				},
+			},
+		},
+		{
+			name: "redirect to https",
+			anno: map[string]string{
+				annotations.AnnotationsHttpToHttps: "true",
+			},
+			expected: &IngressConfig{
+				Plugins: adctypes.Plugins{
+					"redirect": &adctypes.RedirectConfig{
+						HttpToHttps: true,
+					},
+				},
+			},
+		},
+		{
+			name: "redirect to specific uri",
+			anno: map[string]string{
+				annotations.AnnotationsHttpRedirect:     "/newpath",
+				annotations.AnnotationsHttpRedirectCode: "301",
+			},
+			expected: &IngressConfig{
+				Plugins: adctypes.Plugins{
+					"redirect": &adctypes.RedirectConfig{
+						URI:     "/newpath",
+						RetCode: 301,
+					},
+				},
+			},
+		},
+		{
+			name: "cors plugin",
+			anno: map[string]string{
+				annotations.AnnotationsEnableCors:       "true",
+				annotations.AnnotationsCorsAllowOrigin:  "https://example.com",
+				annotations.AnnotationsCorsAllowHeaders: "header-a,header-b",
+				annotations.AnnotationsCorsAllowMethods: "GET,POST",
+			},
+			expected: &IngressConfig{
+				Plugins: adctypes.Plugins{
+					"cors": &adctypes.CorsConfig{
+						AllowOrigins: "https://example.com",
+						AllowHeaders: "header-a,header-b",
+						AllowMethods: "GET,POST",
+					},
+				},
+			},
+		},
+		{
+			name: "enable websocket",
+			anno: map[string]string{
+				annotations.AnnotationsEnableWebSocket: "true",
+			},
+			expected: &IngressConfig{
+				EnableWebsocket: true,
+			},
+		},
+		{
+			name: "fault injection by allowed http methods",
+			anno: map[string]string{
+				annotations.AnnotationsHttpAllowMethods: "GET,POST",
+			},
+			expected: &IngressConfig{
+				Plugins: adctypes.Plugins{
+					"fault-injection": &adctypes.FaultInjectionConfig{
+						Abort: &adctypes.FaultInjectionAbortConfig{
+							HTTPStatus: 405,
+							Vars: [][]expr.Expr{{
+								expr.StringExpr("request_method").Not().In(
+									expr.ArrayExpr(expr.ExprArrayFromStrings([]string{"GET", "POST"})...),
+								),
+							}},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "fault injection by blocked http methods",
+			anno: map[string]string{
+				annotations.AnnotationsHttpBlockMethods: "DELETE",
+			},
+			expected: &IngressConfig{
+				Plugins: adctypes.Plugins{
+					"fault-injection": &adctypes.FaultInjectionConfig{
+						Abort: &adctypes.FaultInjectionAbortConfig{
+							HTTPStatus: 405,
+							Vars: [][]expr.Expr{{
+								expr.StringExpr("request_method").In(
+									expr.ArrayExpr(expr.ExprArrayFromStrings([]string{"DELETE"})...),
+								),
+							}},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "auth type basicAuth",
+			anno: map[string]string{
+				annotations.AnnotationsAuthType: "basicAuth",
+			},
+			expected: &IngressConfig{
+				Plugins: adctypes.Plugins{
+					"basic-auth": &adctypes.BasicAuthConfig{},
+				},
+			},
+		},
+		{
+			name: "auth type keyAuth",
+			anno: map[string]string{
+				annotations.AnnotationsAuthType: "keyAuth",
+			},
+			expected: &IngressConfig{
+				Plugins: adctypes.Plugins{
+					"key-auth": &adctypes.KeyAuthConfig{},
 				},
 			},
 		},
