@@ -41,16 +41,17 @@ type Client struct {
 	mu     sync.Mutex
 	*cache.Store
 
-	executor    ADCExecutor
-	BackendMode string
+	executor ADCExecutor
 
 	ConfigManager    *common.ConfigManager[types.NamespacedNameKind, adctypes.Config]
 	ADCDebugProvider *common.ADCDebugProvider
 
+	defaultMode string
+
 	log logr.Logger
 }
 
-func New(log logr.Logger, mode string, timeout time.Duration) (*Client, error) {
+func New(log logr.Logger, defaultMode string, timeout time.Duration) (*Client, error) {
 	serverURL := os.Getenv("ADC_SERVER_URL")
 	if serverURL == "" {
 		serverURL = defaultHTTPADCExecutorAddr
@@ -59,11 +60,11 @@ func New(log logr.Logger, mode string, timeout time.Duration) (*Client, error) {
 	configManager := common.NewConfigManager[types.NamespacedNameKind, adctypes.Config]()
 
 	logger := log.WithName("client")
-	logger.Info("ADC client initialized", "mode", mode)
+	logger.Info("ADC client initialized")
 
 	var executor ADCExecutor
 	// support pingsix mode
-	if mode == "pingsix" {
+	if defaultMode == "pingsix" {
 		executor = NewKindExecutor(log)
 	} else {
 		executor = NewHTTPADCExecutor(log, serverURL, timeout)
@@ -72,10 +73,10 @@ func New(log logr.Logger, mode string, timeout time.Duration) (*Client, error) {
 	return &Client{
 		Store:            store,
 		executor:         executor,
-		BackendMode:      mode,
 		ConfigManager:    configManager,
 		ADCDebugProvider: common.NewADCDebugProvider(store, configManager),
 		log:              logger,
+		defaultMode:      defaultMode,
 	}, nil
 }
 
@@ -262,8 +263,11 @@ func (c *Client) sync(ctx context.Context, task Task) error {
 		if resourceType == "" {
 			resourceType = "all"
 		}
+		if config.BackendType == "" {
+			config.BackendType = c.defaultMode
+		}
 
-		err := c.executor.Execute(ctx, c.BackendMode, config, args)
+		err := c.executor.Execute(ctx, config, args)
 		duration := time.Since(startTime).Seconds()
 
 		status := adctypes.StatusSuccess

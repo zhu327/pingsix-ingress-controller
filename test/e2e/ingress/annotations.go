@@ -530,6 +530,74 @@ spec:
             port:
               number: 80
 `
+
+			ingressAllowlist = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: allowlist
+  annotations:
+    k8s.apisix.apache.org/allowlist-source-range: "10.0.5.0/16"
+spec:
+  ingressClassName: %s
+  rules:
+  - host: httpbin.example
+    http:
+      paths:
+      - path: /ip
+        pathType: Exact
+        backend:
+          service:
+            name: httpbin-service-e2e-test
+            port:
+              number: 80
+`
+
+			ingressBlocklist = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blocklist
+  annotations:
+    k8s.apisix.apache.org/blocklist-source-range: "127.0.0.1"
+spec:
+  ingressClassName: %s
+  rules:
+  - host: httpbin-block.example
+    http:
+      paths:
+      - path: /ip
+        pathType: Exact
+        backend:
+          service:
+            name: httpbin-service-e2e-test
+            port:
+              number: 80
+`
+			ingressForwardAuth = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: forward-auth
+  annotations:
+    k8s.apisix.apache.org/auth-uri: %s
+    k8s.apisix.apache.org/auth-request-headers: Authorization
+    k8s.apisix.apache.org/auth-upstream-headers: X-User-ID
+    k8s.apisix.apache.org/auth-client-headers: Location
+spec:
+  ingressClassName: %s
+  rules:
+  - host: httpbin.example
+    http:
+      paths:
+      - path: /get
+        pathType: Exact
+        backend:
+          service:
+            name: httpbin-service-e2e-test
+            port:
+              number: 80
+`
 		)
 		BeforeEach(func() {
 			By("create GatewayProxy")
@@ -950,6 +1018,211 @@ spec:
 			Expect(err).NotTo(HaveOccurred(), "unmarshalling response-rewrite plugin config")
 			Expect(rewriteConfig["status_code"]).To(Equal(float64(400)), "checking status code")
 			Expect(rewriteConfig["body_base64"]).To(BeTrue(), "checking body_base64")
+		})
+
+		It("ip-restriction", func() {
+			By("Test allowlist - create ingress with IP allowlist")
+			Expect(s.CreateResourceFromString(fmt.Sprintf(ingressAllowlist, s.Namespace()))).ShouldNot(HaveOccurred(), "creating Ingress with allowlist")
+
+			s.RequestAssert(&scaffold.RequestAssert{
+				Method: "GET",
+				Path:   "/ip",
+				Host:   "httpbin.example",
+				Check:  scaffold.WithExpectedStatus(http.StatusForbidden),
+			})
+
+			By("Test blocklist - create ingress with IP blocklist")
+			Expect(s.CreateResourceFromString(fmt.Sprintf(ingressBlocklist, s.Namespace()))).ShouldNot(HaveOccurred(), "creating Ingress with blocklist")
+
+			s.RequestAssert(&scaffold.RequestAssert{
+				Method: "GET",
+				Path:   "/ip",
+				Host:   "httpbin-block.example",
+				Check:  scaffold.WithExpectedStatus(http.StatusForbidden),
+			})
+		})
+		It("forward-auth", func() {
+			s.DeployNginx(framework.NginxOptions{
+				Namespace: s.Namespace(),
+				Replicas:  ptr.To(int32(1)),
+			})
+
+			Expect(s.CreateResourceFromString(fmt.Sprintf(ingressForwardAuth, "http://nginx/auth", s.Namespace()))).
+				ShouldNot(HaveOccurred(), "creating ApisixConsumer for forwardAuth")
+
+			tests := []*scaffold.RequestAssert{
+				{
+					Method: "GET",
+					Path:   "/get",
+					Host:   "httpbin.example",
+					Headers: map[string]string{
+						"Authorization": "123",
+					},
+					Checks: []scaffold.ResponseCheckFunc{
+						scaffold.WithExpectedStatus(http.StatusOK),
+						scaffold.WithExpectedBodyContains(`"X-User-Id": "user-123"`),
+					},
+				},
+				{
+					Method: "GET",
+					Path:   "/get",
+					Host:   "httpbin.example",
+					Headers: map[string]string{
+						"Authorization": "456",
+					},
+					Checks: []scaffold.ResponseCheckFunc{
+						scaffold.WithExpectedStatus(http.StatusUnauthorized),
+						scaffold.WithExpectedHeader("Location", "http://example.com/auth"),
+					},
+				},
+			}
+			for _, test := range tests {
+				s.RequestAssert(test)
+			}
+		})
+	})
+
+	Context("Service Namespace", func() {
+		var (
+			ns  string
+			svc = `
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-external-domain
+spec:
+  type: ExternalName
+  externalName: httpbin-service-e2e-test.%s.svc
+`
+			ingressSvcNamespace = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: retries
+  annotations:
+    k8s.apisix.apache.org/svc-namespace: %s
+spec:
+  ingressClassName: %s
+  rules:
+  - host: httpbin.example
+    http:
+      paths:
+      - path: /get
+        pathType: Exact
+        backend:
+          service:
+            name: httpbin-external-domain
+            port:
+              number: 80
+`
+		)
+		BeforeEach(func() {
+			ns = s.Namespace() + "-v2"
+			s.CreateNamespace(ns)
+			err := s.CreateResourceFromStringWithNamespace(fmt.Sprintf(svc, s.Namespace()), ns)
+			Expect(err).NotTo(HaveOccurred(), "creating Service in custom namespace")
+
+			By("create GatewayProxy")
+			Expect(s.CreateResourceFromString(s.GetGatewayProxySpec())).NotTo(HaveOccurred(), "creating GatewayProxy")
+
+			By("create IngressClass")
+			err = s.CreateResourceFromStringWithNamespace(s.GetIngressClassYaml(), "")
+			Expect(err).NotTo(HaveOccurred(), "creating IngressClass")
+			time.Sleep(5 * time.Second)
+		})
+		AfterEach(func() {
+			s.DeleteNamespace(ns)
+		})
+		It("svc-namespace", func() {
+			Expect(s.CreateResourceFromString(fmt.Sprintf(ingressSvcNamespace, ns, s.Namespace()))).ShouldNot(HaveOccurred(), "creating Ingress")
+
+			s.RequestAssert(&scaffold.RequestAssert{
+				Method: "GET",
+				Path:   "/get",
+				Host:   "httpbin.example",
+				Check:  scaffold.WithExpectedStatus(http.StatusOK),
+			})
+		})
+	})
+
+	Context("Route", func() {
+		var (
+			ingressRegex = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: regex
+  annotations:
+    k8s.apisix.apache.org/use-regex: "true"
+spec:
+  ingressClassName: %s
+  rules:
+  - host: httpbin.example
+    http:
+      paths:
+      - path: /anything/.*/ok
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: httpbin-service-e2e-test
+            port:
+              number: 80
+`
+		)
+		BeforeEach(func() {
+			By("create GatewayProxy")
+			Expect(s.CreateResourceFromString(s.GetGatewayProxySpec())).NotTo(HaveOccurred(), "creating GatewayProxy")
+
+			By("create IngressClass")
+			err := s.CreateResourceFromStringWithNamespace(s.GetIngressClassYaml(), "")
+			Expect(err).NotTo(HaveOccurred(), "creating IngressClass")
+			time.Sleep(5 * time.Second)
+		})
+		It("regex match", func() {
+			Expect(s.CreateResourceFromString(fmt.Sprintf(ingressRegex, s.Namespace()))).ShouldNot(HaveOccurred(), "creating Ingress")
+
+			tests := []*scaffold.RequestAssert{
+				{
+					Method: "GET",
+					Path:   "/anything/test/ok",
+					Host:   "httpbin.example",
+					Check:  scaffold.WithExpectedStatus(http.StatusOK),
+				},
+				{
+					Method: "GET",
+					Path:   "/anything/ip/ok",
+					Host:   "httpbin.example",
+					Check:  scaffold.WithExpectedStatus(http.StatusOK),
+				},
+				{
+					Method: "GET",
+					Path:   "/test/notok",
+					Host:   "httpbin.example",
+					Check:  scaffold.WithExpectedStatus(http.StatusNotFound),
+				},
+
+				{
+					Method: "GET",
+					Path:   "/anything",
+					Host:   "httpbin.example",
+					Check:  scaffold.WithExpectedStatus(http.StatusNotFound),
+				},
+				{
+					Method: "GET",
+					Path:   "/anything/test/notok",
+					Host:   "httpbin.example",
+					Check:  scaffold.WithExpectedStatus(http.StatusNotFound),
+				},
+				{
+					Method: "GET",
+					Path:   "/anything/ok",
+					Host:   "httpbin.example",
+					Check:  scaffold.WithExpectedStatus(http.StatusNotFound),
+				},
+			}
+			for _, test := range tests {
+				s.RequestAssert(test)
+			}
 		})
 	})
 })

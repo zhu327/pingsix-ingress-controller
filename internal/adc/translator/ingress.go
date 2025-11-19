@@ -30,6 +30,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	adctypes "github.com/apache/apisix-ingress-controller/api/adc"
+	apiv2 "github.com/apache/apisix-ingress-controller/api/v2"
 	"github.com/apache/apisix-ingress-controller/internal/controller/label"
 	"github.com/apache/apisix-ingress-controller/internal/id"
 	"github.com/apache/apisix-ingress-controller/internal/provider"
@@ -181,7 +182,11 @@ func (t *Translator) resolveIngressUpstream(
 	backendService *networkingv1.IngressServiceBackend,
 	upstream *adctypes.Upstream,
 ) string {
-	backendRef := convertBackendRef(obj.Namespace, backendService.Name, internaltypes.KindService)
+	ns := obj.Namespace
+	if config != nil && config.ServiceNamespace != "" {
+		ns = config.ServiceNamespace
+	}
+	backendRef := convertBackendRef(ns, backendService.Name, internaltypes.KindService)
 	t.AttachBackendTrafficPolicyToUpstream(backendRef, tctx.BackendTrafficPolicies, upstream)
 	if config != nil {
 		upConfig := config.Upstream
@@ -209,7 +214,7 @@ func (t *Translator) resolveIngressUpstream(
 	}
 
 	getService := tctx.Services[types.NamespacedName{
-		Namespace: obj.Namespace,
+		Namespace: ns,
 		Name:      backendService.Name,
 	}]
 	if getService == nil {
@@ -238,7 +243,7 @@ func (t *Translator) resolveIngressUpstream(
 	}
 
 	endpointSlices := tctx.EndpointSlices[types.NamespacedName{
-		Namespace: obj.Namespace,
+		Namespace: ns,
 		Name:      backendService.Name,
 	}]
 	if len(endpointSlices) > 0 {
@@ -277,7 +282,24 @@ func (t *Translator) buildRouteFromIngressPath(
 			prefix := strings.TrimSuffix(path.Path, "/") + "/*"
 			uris = append(uris, prefix)
 		case networkingv1.PathTypeImplementationSpecific:
-			uris = []string{"/*"}
+			if config.UseRegex {
+				uris = []string{"/*"}
+				vars := apiv2.ApisixRouteHTTPMatchExprs{
+					apiv2.ApisixRouteHTTPMatchExpr{
+						Subject: apiv2.ApisixRouteHTTPMatchExprSubject{
+							Scope: apiv2.ScopePath,
+						},
+						Op:    apiv2.OpRegexMatch,
+						Value: &path.Path,
+					},
+				}
+				routeVars, err := vars.ToVars()
+				if err != nil {
+					t.Log.Error(err, "failed to convert regex match exprs to vars", "exprs", vars)
+				} else {
+					route.Vars = append(route.Vars, routeVars...)
+				}
+			}
 		}
 	}
 

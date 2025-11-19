@@ -81,11 +81,11 @@ func NewKindExecutor(log logr.Logger) *KindExecutor {
 	}
 }
 
-func (e *KindExecutor) Execute(ctx context.Context, mode string, config adctypes.Config, args []string) error {
-	return e.runKindSync(ctx, mode, config, args)
+func (e *KindExecutor) Execute(ctx context.Context, config adctypes.Config, args []string) error {
+	return e.runKindSync(ctx, config, args)
 }
 
-func (e *KindExecutor) runKindSync(ctx context.Context, mode string, config adctypes.Config, args []string) error {
+func (e *KindExecutor) runKindSync(ctx context.Context, config adctypes.Config, args []string) error {
 	// Parse args to extract labels, types, and file path
 	labels, adcTypes, filePath, err := e.parseArgs(args)
 	if err != nil {
