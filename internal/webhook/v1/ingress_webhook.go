@@ -31,6 +31,7 @@ import (
 
 	"github.com/apache/apisix-ingress-controller/internal/controller"
 	"github.com/apache/apisix-ingress-controller/internal/webhook/v1/reference"
+	sslvalidator "github.com/apache/apisix-ingress-controller/internal/webhook/v1/ssl"
 )
 
 var ingresslog = logf.Log.WithName("ingress-resource")
@@ -39,32 +40,6 @@ var ingresslog = logf.Log.WithName("ingress-resource")
 // ref: https://apisix.apache.org/docs/ingress-controller/upgrade-guide/#limited-support-for-ingress-annotations
 var unsupportedAnnotations = []string{
 	"k8s.apisix.apache.org/use-regex",
-	"k8s.apisix.apache.org/enable-websocket",
-	"k8s.apisix.apache.org/plugin-config-name",
-	"k8s.apisix.apache.org/upstream-scheme",
-	"k8s.apisix.apache.org/upstream-retries",
-	"k8s.apisix.apache.org/upstream-connect-timeout",
-	"k8s.apisix.apache.org/upstream-read-timeout",
-	"k8s.apisix.apache.org/upstream-send-timeout",
-	"k8s.apisix.apache.org/enable-cors",
-	"k8s.apisix.apache.org/cors-allow-origin",
-	"k8s.apisix.apache.org/cors-allow-headers",
-	"k8s.apisix.apache.org/cors-allow-methods",
-	"k8s.apisix.apache.org/enable-csrf",
-	"k8s.apisix.apache.org/csrf-key",
-	"k8s.apisix.apache.org/http-to-https",
-	"k8s.apisix.apache.org/http-redirect",
-	"k8s.apisix.apache.org/http-redirect-code",
-	"k8s.apisix.apache.org/rewrite-target",
-	"k8s.apisix.apache.org/rewrite-target-regex",
-	"k8s.apisix.apache.org/rewrite-target-regex-template",
-	"k8s.apisix.apache.org/enable-response-rewrite",
-	"k8s.apisix.apache.org/response-rewrite-status-code",
-	"k8s.apisix.apache.org/response-rewrite-body",
-	"k8s.apisix.apache.org/response-rewrite-body-base64",
-	"k8s.apisix.apache.org/response-rewrite-add-header",
-	"k8s.apisix.apache.org/response-rewrite-set-header",
-	"k8s.apisix.apache.org/response-rewrite-remove-header",
 	"k8s.apisix.apache.org/auth-uri",
 	"k8s.apisix.apache.org/auth-ssl-verify",
 	"k8s.apisix.apache.org/auth-request-headers",
@@ -72,8 +47,6 @@ var unsupportedAnnotations = []string{
 	"k8s.apisix.apache.org/auth-client-headers",
 	"k8s.apisix.apache.org/allowlist-source-range",
 	"k8s.apisix.apache.org/blocklist-source-range",
-	"k8s.apisix.apache.org/http-allow-methods",
-	"k8s.apisix.apache.org/http-block-methods",
 	"k8s.apisix.apache.org/auth-type",
 	"k8s.apisix.apache.org/svc-namespace",
 }
@@ -142,6 +115,12 @@ func (v *IngressCustomValidator) ValidateCreate(ctx context.Context, obj runtime
 		return nil, nil
 	}
 
+	detector := sslvalidator.NewConflictDetector(v.Client)
+	conflicts := detector.DetectConflicts(ctx, ingress)
+	if len(conflicts) > 0 {
+		return nil, fmt.Errorf("%s", sslvalidator.FormatConflicts(conflicts))
+	}
+
 	// Check for unsupported annotations and generate warnings
 	warnings := checkUnsupportedAnnotations(ingress)
 	warnings = append(warnings, v.collectReferenceWarnings(ctx, ingress)...)
@@ -160,10 +139,15 @@ func (v *IngressCustomValidator) ValidateUpdate(ctx context.Context, oldObj, new
 		return nil, nil
 	}
 
+	detector := sslvalidator.NewConflictDetector(v.Client)
+	conflicts := detector.DetectConflicts(ctx, ingress)
+	if len(conflicts) > 0 {
+		return nil, fmt.Errorf("%s", sslvalidator.FormatConflicts(conflicts))
+	}
+
 	// Check for unsupported annotations and generate warnings
 	warnings := checkUnsupportedAnnotations(ingress)
 	warnings = append(warnings, v.collectReferenceWarnings(ctx, ingress)...)
-
 	return warnings, nil
 }
 

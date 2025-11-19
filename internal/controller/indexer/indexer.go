@@ -32,6 +32,7 @@ import (
 
 	"github.com/apache/apisix-ingress-controller/api/v1alpha1"
 	apiv2 "github.com/apache/apisix-ingress-controller/api/v2"
+	"github.com/apache/apisix-ingress-controller/internal/adc/translator/annotations"
 	internaltypes "github.com/apache/apisix-ingress-controller/internal/types"
 )
 
@@ -46,6 +47,7 @@ const (
 	IngressClassParametersRef = "ingressClassParametersRef"
 	ConsumerGatewayRef        = "consumerGatewayRef"
 	PolicyTargetRefs          = "targetRefs"
+	TLSHostIndexRef           = "tlsHostRefs"
 	GatewayClassIndexRef      = "gatewayClassRef"
 	ApisixUpstreamRef         = "apisixUpstreamRef"
 	PluginConfigIndexRef      = "pluginConfigRefs"
@@ -70,6 +72,7 @@ func SetupIndexer(mgr ctrl.Manager) error {
 		setupApisixPluginConfigIndexer,
 		setupApisixTlsIndexer,
 		setupApisixConsumerIndexer,
+		setupApisixGlobalRuleIndexer,
 		setupGatewayClassIndexer,
 	} {
 		if err := setup(mgr); err != nil {
@@ -99,6 +102,16 @@ func setupGatewayIndexer(mgr ctrl.Manager) error {
 	); err != nil {
 		return err
 	}
+
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&gatewayv1.Gateway{},
+		TLSHostIndexRef,
+		GatewayTLSHostIndexFunc,
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -404,6 +417,24 @@ func setupIngressIndexer(mgr ctrl.Manager) error {
 		return err
 	}
 
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&networkingv1.Ingress{},
+		TLSHostIndexRef,
+		IngressTLSHostIndexFunc,
+	); err != nil {
+		return err
+	}
+
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&networkingv1.Ingress{},
+		PluginConfigIndexRef,
+		IngressPluginConfigIndexFunc,
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -430,10 +461,11 @@ func IngressClassIndexFunc(rawObj client.Object) []string {
 
 func IngressClassRefIndexFunc(rawObj client.Object) []string {
 	ingress := rawObj.(*networkingv1.Ingress)
-	if ingress.Spec.IngressClassName == nil {
+	ingressClassName := internaltypes.GetEffectiveIngressClassName(ingress)
+	if ingressClassName == "" {
 		return nil
 	}
-	return []string{*ingress.Spec.IngressClassName}
+	return []string{ingressClassName}
 }
 
 func IngressServiceIndexFunc(rawObj client.Object) []string {
@@ -849,6 +881,15 @@ func setupApisixTlsIndexer(mgr ctrl.Manager) error {
 		return err
 	}
 
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&apiv2.ApisixTls{},
+		TLSHostIndexRef,
+		ApisixTlsHostIndexFunc,
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -875,4 +916,39 @@ func ApisixTlsIngressClassIndexFunc(rawObj client.Object) []string {
 		return nil
 	}
 	return []string{tls.Spec.IngressClassName}
+}
+
+func setupApisixGlobalRuleIndexer(mgr ctrl.Manager) error {
+	// Create secret index for ApisixGlobalRule
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&apiv2.ApisixGlobalRule{},
+		SecretIndexRef,
+		ApisixGlobalRuleSecretIndexFunc,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ApisixGlobalRuleSecretIndexFunc(rawObj client.Object) []string {
+	agr := rawObj.(*apiv2.ApisixGlobalRule)
+	var keys []string
+	for _, plugin := range agr.Spec.Plugins {
+		if plugin.Enable && plugin.SecretRef != "" {
+			keys = append(keys, GenIndexKey(agr.GetNamespace(), plugin.SecretRef))
+		}
+	}
+	return keys
+}
+
+func IngressPluginConfigIndexFunc(rawObj client.Object) []string {
+	ingress := rawObj.(*networkingv1.Ingress)
+	pluginConfigName := ingress.Annotations[annotations.AnnotationsPluginConfigName]
+	if pluginConfigName == "" {
+		return nil
+	}
+
+	return []string{GenIndexKey(ingress.GetNamespace(), pluginConfigName)}
 }

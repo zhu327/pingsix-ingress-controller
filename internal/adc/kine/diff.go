@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/apache/apisix-ingress-controller/api/adc"
+	"github.com/apache/apisix-ingress-controller/internal/controller/label"
 )
 
 // EventType represents the type of change event
@@ -42,9 +43,8 @@ type Event struct {
 
 // DiffOptions contains options for diff operation
 type DiffOptions struct {
-	Labels       map[string]string
-	Types        []string
-	KindSelector *KindLabelSelector
+	Labels map[string]string
+	Types  []string
 }
 
 // Differ interface for comparing resources and generating events
@@ -85,10 +85,15 @@ func (d *differ) Diff(newResources *TransferredResources, opts *DiffOptions) ([]
 		}
 	}
 
-	// Build list options from KindSelector
+	// Build KindSelector from labels if provided
 	var listOpts []ListOption
-	if opts.KindSelector != nil {
-		listOpts = append(listOpts, opts.KindSelector)
+	if len(opts.Labels) > 0 {
+		kindSelector := &KindLabelSelector{
+			Kind:      opts.Labels[label.LabelKind],
+			Namespace: opts.Labels[label.LabelNamespace],
+			Name:      opts.Labels[label.LabelName],
+		}
+		listOpts = append(listOpts, kindSelector)
 	}
 
 	// Diff routes

@@ -31,7 +31,6 @@ import (
 
 	adctypes "github.com/apache/apisix-ingress-controller/api/adc"
 	"github.com/apache/apisix-ingress-controller/internal/adc/kine"
-	"github.com/apache/apisix-ingress-controller/internal/controller/label"
 )
 
 const (
@@ -109,22 +108,11 @@ func (e *KindExecutor) runKindSync(ctx context.Context, mode string, config adct
 	// Convert ADC types to Kine types
 	kineTypes := e.convertADCTypesToKineTypes(adcTypes)
 
-	// Build KindLabelSelector from labels if provided
-	var kindSelector *kine.KindLabelSelector
-	if len(labels) > 0 {
-		kindSelector = &kine.KindLabelSelector{
-			Kind:      labels[label.LabelKind],
-			Namespace: labels[label.LabelNamespace],
-			Name:      labels[label.LabelName],
-		}
-	}
-
 	// Generate diff events
 	e.log.V(1).Info("generating diff events")
 	diffOpts := &kine.DiffOptions{
-		Labels:       labels,
-		Types:        kineTypes,
-		KindSelector: kindSelector,
+		Labels: labels,
+		Types:  kineTypes,
 	}
 	events, err := e.differ.Diff(transferredResources, diffOpts)
 	if err != nil {

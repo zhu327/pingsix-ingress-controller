@@ -19,16 +19,20 @@ package ingress
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	"github.com/apache/apisix-ingress-controller/api/v1alpha1"
 	"github.com/apache/apisix-ingress-controller/test/e2e/framework"
@@ -224,6 +228,36 @@ spec:
             port:
               number: 80
 `
+		var ingressWithExternalNamePortName = `
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-external-domain
+spec:
+  type: ExternalName
+  externalName: httpbin-service-e2e-test
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-external-name-port-name
+spec:
+  rules:
+  - host: httpbin.external
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: httpbin-external-domain
+            port:
+              name: http
+`
 		BeforeEach(func() {
 			By("create GatewayProxy")
 			gatewayProxy := fmt.Sprintf(gatewayProxyYaml, s.Namespace(), s.Deployer.GetAdminEndpoint(), s.AdminKey())
@@ -288,6 +322,26 @@ spec:
 				Interval: time.Second * 10,
 				Timeout:  3 * time.Minute,
 			})
+		})
+
+		It("Mathch Service Port by Name", func() {
+			By("create Ingress")
+			err := s.CreateResourceFromString(ingressWithExternalNamePortName)
+			Expect(err).NotTo(HaveOccurred(), "creating Ingress without IngressClass")
+
+			By("checking the external service response")
+			s.RequestAssert(&scaffold.RequestAssert{
+				Method: "GET",
+				Path:   "/get",
+				Host:   "httpbin.external",
+				Check:  scaffold.WithExpectedStatus(http.StatusOK),
+			})
+
+			upstreams, err := s.DefaultDataplaneResource().Upstream().List(context.Background())
+			Expect(err).NotTo(HaveOccurred(), "listing Upstream")
+			Expect(upstreams).To(HaveLen(1), "the number of Upstream")
+			Expect(upstreams[0].Nodes).To(HaveLen(1), "the number of Upstream nodes")
+			Expect(upstreams[0].Nodes[0].Port).To(Equal(8080), "the port of Upstream node")
 		})
 
 		It("Delete Ingress during restart", func() {
@@ -929,6 +983,129 @@ spec:
 		})
 	})
 
+	Context("Test Services With AppProtocol", func() {
+		var ingressClass = `
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: %s
+spec:
+  controller: "%s"
+  parameters:
+    apiGroup: "apisix.apache.org"
+    kind: "GatewayProxy"
+    name: "apisix-proxy-config"
+    namespace: "%s"
+    scope: "Namespace"
+`
+		var ingress = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apisix-ingress-tls
+spec:
+  ingressClassName: %s
+  rules:
+  - host: nginx.example
+    http:
+      paths:
+      - path: /get
+        pathType: Exact
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 443
+`
+		var ingressWithWSS = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apisix-ingress-wss
+spec:
+  ingressClassName: %s
+  tls:
+  - hosts:
+    - api6.com
+    secretName: test-ingress-tls
+  rules:
+  - host: api6.com
+    http:
+      paths:
+      - path: /ws
+        pathType: Exact
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 8443
+`
+		BeforeEach(func() {
+			s.DeployNginx(framework.NginxOptions{
+				Namespace: s.Namespace(),
+				Replicas:  ptr.To(int32(1)),
+			})
+			By("create GatewayProxy")
+			Expect(s.CreateResourceFromString(s.GetGatewayProxySpec())).NotTo(HaveOccurred(), "creating GatewayProxy")
+
+			By("create IngressClass")
+			err := s.CreateResourceFromStringWithNamespace(fmt.Sprintf(ingressClass, s.Namespace(), s.GetControllerName(), s.Namespace()), s.Namespace())
+			Expect(err).NotTo(HaveOccurred(), "creating IngressClass")
+			time.Sleep(5 * time.Second)
+		})
+
+		It("Ingress With HTTPS Backend", func() {
+			By("create Ingress")
+			Expect(s.CreateResourceFromString(fmt.Sprintf(ingress, s.Namespace()))).ShouldNot(HaveOccurred(), "creating Ingress")
+
+			s.RequestAssert(&scaffold.RequestAssert{
+				Method: "GET",
+				Path:   "/get",
+				Host:   "nginx.example",
+				Check:  scaffold.WithExpectedStatus(http.StatusOK),
+			})
+		})
+
+		It("Ingress With WSS Backend", func() {
+			createSecret(s, _secretName)
+			By("create Ingress")
+			Expect(s.CreateResourceFromString(fmt.Sprintf(ingressWithWSS, s.Namespace()))).ShouldNot(HaveOccurred(), "creating Ingress")
+			time.Sleep(6 * time.Second)
+
+			By("verify wss connection")
+			u := url.URL{
+				Scheme: "wss",
+				Host:   s.GetAPISIXHTTPSEndpoint(),
+				Path:   "/ws",
+			}
+			headers := http.Header{"Host": []string{"api6.com"}}
+			dialer := websocket.Dialer{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+					ServerName:         "api6.com",
+				},
+			}
+
+			conn, resp, err := dialer.Dial(u.String(), headers)
+			Expect(err).ShouldNot(HaveOccurred(), "WebSocket handshake")
+			Expect(resp.StatusCode).Should(Equal(http.StatusSwitchingProtocols))
+
+			defer func() {
+				_ = conn.Close()
+			}()
+
+			By("send and receive message through WebSocket")
+			testMessage := "hello, this is APISIX"
+			err = conn.WriteMessage(websocket.TextMessage, []byte(testMessage))
+			Expect(err).ShouldNot(HaveOccurred(), "writing WebSocket message")
+
+			// Then our echo
+			_, msg, err := conn.ReadMessage()
+			Expect(err).ShouldNot(HaveOccurred(), "reading echo message")
+			Expect(string(msg)).To(Equal(testMessage), "message content verification")
+		})
+	})
+
 	PContext("GatewayProxy reference Secret", func() {
 		const secretSpec = `
 apiVersion: v1
@@ -1067,6 +1244,68 @@ spec:
 					Expect().Raw().Header.Get("X-Proxy-Test")
 			}).WithTimeout(20 * time.Second).ProbeEvery(time.Second).
 				Should(Equal("enabled"))
+		})
+	})
+
+	Context("Ingress with annotation-based IngressClass", func() {
+		const ingressClassSpec = `
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: %s
+spec:
+  controller: "%s"
+  parameters:
+    apiGroup: "apisix.apache.org"
+    kind: "GatewayProxy"
+    name: "apisix-proxy-config"
+    namespace: %s
+    scope: "Namespace"
+`
+		const ingressSpec = `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apisix-ingress-annotation
+  annotations:
+    kubernetes.io/ingress.class: %s
+spec:
+  rules:
+  - host: annotation.example.com
+    http:
+      paths:
+      - path: /get
+        pathType: Prefix
+        backend:
+          service:
+            name: httpbin-service-e2e-test
+            port:
+              number: 80
+`
+
+		It("Ingress with kubernetes.io/ingress.class annotation", func() {
+			By("create GatewayProxy")
+			gatewayProxy := fmt.Sprintf(gatewayProxyYaml, s.Namespace(), s.Deployer.GetAdminEndpoint(), s.AdminKey())
+			err := s.CreateResourceFromStringWithNamespace(gatewayProxy, s.Namespace())
+			Expect(err).NotTo(HaveOccurred(), "creating GatewayProxy")
+			time.Sleep(5 * time.Second)
+
+			By("create IngressClass")
+			err = s.CreateResourceFromStringWithNamespace(fmt.Sprintf(ingressClassSpec, s.Namespace(), s.GetControllerName(), s.Namespace()), s.Namespace())
+			Expect(err).NotTo(HaveOccurred(), "creating IngressClass")
+
+			By("create Ingress with annotation")
+			err = s.CreateResourceFromStringWithNamespace(fmt.Sprintf(ingressSpec, s.Namespace()), s.Namespace())
+			Expect(err).NotTo(HaveOccurred(), "creating Ingress with annotation")
+
+			By("verify Ingress with annotation works")
+			Eventually(func() int {
+				return s.NewAPISIXClient().
+					GET("/get").
+					WithHost("annotation.example.com").
+					Expect().Raw().StatusCode
+			}).WithTimeout(20 * time.Second).ProbeEvery(time.Second).
+				Should(Equal(http.StatusOK))
 		})
 	})
 })

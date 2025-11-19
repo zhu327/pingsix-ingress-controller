@@ -166,8 +166,12 @@ func convertUpstreamType(adcType adc.UpstreamType) SelectionType {
 	switch adcType {
 	case adc.Roundrobin:
 		return SelectionTypeRoundRobin
+	case adc.Random:
+		return SelectionTypeRandom
 	case adc.Chash:
 		return SelectionTypeFnv
+	case adc.Ketama:
+		return SelectionTypeKetama
 	case adc.LeastConn:
 		return SelectionTypeRoundRobin // fallback
 	case adc.Ewma:
@@ -344,10 +348,16 @@ func convertIntSliceToUint32(intSlice []int) []uint32 {
 
 // TransferSSL converts an ADC SSL to Kine SSL(s)
 // Since ADC SSL supports multiple certificates and Kine SSL supports only one,
-// this function returns multiple Kine SSLs if there are multiple certificates
+// this function returns multiple Kine SSLs if there are multiple certificates.
+// Note: Kine does not support client certificates, so client-type SSLs are ignored.
 func TransferSSL(adcSSL *adc.SSL) ([]*SSL, error) {
 	if adcSSL == nil {
 		return nil, fmt.Errorf("adc ssl is nil")
+	}
+
+	// Skip client certificates - Kine only supports server certificates
+	if adcSSL.Type != nil && *adcSSL.Type == adc.Client {
+		return nil, nil
 	}
 
 	if len(adcSSL.Certificates) == 0 {

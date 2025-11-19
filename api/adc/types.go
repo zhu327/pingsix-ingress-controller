@@ -351,6 +351,10 @@ const (
 	Ewma       UpstreamType = "ewma"
 	LeastConn  UpstreamType = "least_conn"
 	Roundrobin UpstreamType = "roundrobin"
+
+	// NOTE: only supported by PingSIX
+	Ketama UpstreamType = "ketama"
+	Random UpstreamType = "random"
 )
 
 type SSLProtocol string
@@ -657,6 +661,15 @@ type ResponseRewriteConfig struct {
 	Headers      *ResponseHeaders    `json:"headers,omitempty" yaml:"headers,omitempty"`
 	LuaRestyExpr []expr.Expr         `json:"vars,omitempty" yaml:"vars,omitempty"`
 	Filters      []map[string]string `json:"filters,omitempty" yaml:"filters,omitempty"`
+}
+
+type FaultInjectionConfig struct {
+	Abort *FaultInjectionAbortConfig `json:"abort,omitempty" yaml:"abort,omitempty"`
+}
+
+type FaultInjectionAbortConfig struct {
+	HTTPStatus int           `json:"http_status" yaml:"http_status"`
+	Vars       [][]expr.Expr `json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 type ResponseHeaders struct {

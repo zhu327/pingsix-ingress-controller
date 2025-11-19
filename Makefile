@@ -17,7 +17,7 @@
 
 # Image URL to use all building/pushing image targets
 
-VERSION ?= 2.0.0-rc4
+VERSION ?= 2.0.0-rc5
 
 RELEASE_SRC = apache-apisix-ingress-controller-${VERSION}-src
 
@@ -27,7 +27,7 @@ IMG ?= apache/apisix-ingress-controller:$(IMAGE_TAG)
 ENVTEST_K8S_VERSION = 1.30.0
 KIND_NAME ?= apisix-ingress-cluster
 
-ADC_VERSION ?= 0.21.0
+ADC_VERSION ?= 0.21.2
 
 DIR := $(shell pwd)
 
@@ -52,7 +52,7 @@ GO_LDFLAGS ?= "-X=$(VERSYM)=$(VERSION) -X=$(GITSHASYM)=$(GITSHA) -X=$(BUILDOSSYM
 # gateway-api
 GATEAY_API_VERSION ?= v1.3.0
 ## https://github.com/kubernetes-sigs/gateway-api/blob/v1.3.0/pkg/features/httproute.go
-SUPPORTED_EXTENDED_FEATURES = "HTTPRouteDestinationPortMatching,HTTPRouteMethodMatching,HTTPRoutePortRedirect,HTTPRouteRequestMirror,HTTPRouteSchemeRedirect,GatewayAddressEmpty,HTTPRouteResponseHeaderModification,GatewayPort8080,HTTPRouteHostRewrite,HTTPRouteQueryParamMatching,HTTPRoutePathRewrite"
+SUPPORTED_EXTENDED_FEATURES = "HTTPRouteDestinationPortMatching,HTTPRouteMethodMatching,HTTPRoutePortRedirect,HTTPRouteRequestMirror,HTTPRouteSchemeRedirect,GatewayAddressEmpty,HTTPRouteResponseHeaderModification,GatewayPort8080,HTTPRouteHostRewrite,HTTPRouteQueryParamMatching,HTTPRoutePathRewrite,HTTPRouteBackendProtocolWebSocket"
 CONFORMANCE_TEST_REPORT_OUTPUT ?= $(DIR)/apisix-ingress-controller-conformance-report.yaml
 ## https://github.com/kubernetes-sigs/gateway-api/blob/v1.3.0/conformance/utils/suite/profiles.go
 CONFORMANCE_PROFILES ?= GATEWAY-HTTP,GATEWAY-GRPC,GATEWAY-TLS
@@ -178,6 +178,7 @@ kind-down:
 kind-load-images: pull-infra-images kind-load-ingress-image kind-load-adc-image
 	@kind load docker-image kennethreitz/httpbin:latest --name $(KIND_NAME) 
 	@kind load docker-image jmalloc/echo-server:latest --name $(KIND_NAME)
+	@kind load docker-image openresty/openresty:1.27.1.2-4-bullseye-fat --name $(KIND_NAME)
 
 .PHONY: kind-load-ingress-image
 kind-load-ingress-image:
@@ -193,6 +194,7 @@ kind-load-adc-image:
 pull-infra-images:
 	@docker pull kennethreitz/httpbin:latest
 	@docker pull jmalloc/echo-server:latest
+	@docker pull openresty/openresty:1.27.1.2-4-bullseye-fat
 
 ##@ Build
 
