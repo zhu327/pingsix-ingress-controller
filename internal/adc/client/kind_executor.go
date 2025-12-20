@@ -85,7 +85,7 @@ func (e *KindExecutor) Execute(ctx context.Context, config adctypes.Config, args
 	return e.runKindSync(ctx, config, args)
 }
 
-func (e *KindExecutor) runKindSync(_ context.Context, config adctypes.Config, args []string) error {
+func (e *KindExecutor) runKindSync(_ context.Context, _ adctypes.Config, args []string) error {
 	// Parse args to extract labels, types, and file path
 	labels, adcTypes, filePath, err := e.parseArgs(args)
 	if err != nil {
