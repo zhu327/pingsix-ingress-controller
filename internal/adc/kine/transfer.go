@@ -34,7 +34,7 @@ func TransferService(adcSvc *adc.Service) (*Service, []*Route, error) {
 	}
 
 	// Convert ADC Routes to Kine Routes
-	var kineRoutes []*Route
+	kineRoutes := make([]*Route, 0, len(adcSvc.Routes))
 	for _, adcRoute := range adcSvc.Routes {
 		kineRoute, err := convertRoute(adcRoute, adcSvc)
 		if err != nil {
@@ -368,7 +368,7 @@ func TransferSSL(adcSSL *adc.SSL) ([]*SSL, error) {
 		return nil, fmt.Errorf("adc ssl has no snis")
 	}
 
-	var kineSSLs []*SSL
+	kineSSLs := make([]*SSL, 0, len(adcSSL.Certificates))
 
 	// For each certificate in ADC SSL, create a Kine SSL
 	// All certificates share the same SNIs
@@ -430,7 +430,7 @@ func TransferGlobalRule(adcGlobalRule adc.GlobalRule) []*GlobalRule {
 		return nil
 	}
 
-	var kineGlobalRules []*GlobalRule
+	kineGlobalRules := make([]*GlobalRule, 0, len(adcGlobalRule))
 
 	// Each plugin becomes a separate GlobalRule
 	for pluginName, pluginConfig := range adcGlobalRule {

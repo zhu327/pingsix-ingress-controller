@@ -328,7 +328,7 @@ func (d *differ) diffSSLs(newSSLs []*SSL, listOpts []ListOption) ([]Event, error
 }
 
 // diffGlobalRules compares new global rules with cached global rules
-func (d *differ) diffGlobalRules(newGlobalRules []*GlobalRule, listOpts []ListOption) ([]Event, error) {
+func (d *differ) diffGlobalRules(newGlobalRules []*GlobalRule, _ []ListOption) ([]Event, error) {
 	// Get cached global rules - note: global rules don't support label filtering
 	cachedGlobalRules, err := d.cache.ListGlobalRules()
 	if err != nil {

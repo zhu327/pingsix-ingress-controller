@@ -85,7 +85,7 @@ func (e *KindExecutor) Execute(ctx context.Context, config adctypes.Config, args
 	return e.runKindSync(ctx, config, args)
 }
 
-func (e *KindExecutor) runKindSync(ctx context.Context, config adctypes.Config, args []string) error {
+func (e *KindExecutor) runKindSync(_ context.Context, config adctypes.Config, args []string) error {
 	// Parse args to extract labels, types, and file path
 	labels, adcTypes, filePath, err := e.parseArgs(args)
 	if err != nil {
@@ -122,7 +122,7 @@ func (e *KindExecutor) runKindSync(ctx context.Context, config adctypes.Config, 
 	e.log.Info("diff completed", "totalEvents", len(events))
 
 	// Process events: apply cache changes and send to etcd adapter
-	var adapterEvents []*adapter.Event
+	adapterEvents := make([]*adapter.Event, 0, len(events))
 	for _, event := range events {
 		// Apply cache changes
 		if err := e.applyCacheChange(event); err != nil {

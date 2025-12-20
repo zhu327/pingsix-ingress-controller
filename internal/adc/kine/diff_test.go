@@ -8,6 +8,10 @@ import (
 	"github.com/apache/apisix-ingress-controller/api/adc"
 )
 
+const (
+	exampleHost = "example.com"
+)
+
 func TestDiffer_DiffRoutes(t *testing.T) {
 	// Create cache
 	cache, err := NewMemDBCache()
@@ -120,7 +124,7 @@ func TestDiffer_DiffServices(t *testing.T) {
 				"k8s/name":      "test",
 			},
 		},
-		Hosts: []string{"example.com"},
+		Hosts: []string{exampleHost},
 	}
 	if err := cache.InsertService(existingService); err != nil {
 		t.Fatalf("failed to insert service: %v", err)
@@ -199,7 +203,7 @@ func TestSortEvents(t *testing.T) {
 
 func TestTransferResources(t *testing.T) {
 	// Create ADC resources
-	host := "example.com"
+	host := exampleHost
 	resources := &adc.Resources{
 		Services: []*adc.Service{
 			{
@@ -247,7 +251,7 @@ func TestTransferResources(t *testing.T) {
 						Key:         "key1",
 					},
 				},
-				Snis: []string{"example.com"},
+				Snis: []string{exampleHost},
 			},
 		},
 		GlobalRules: adc.GlobalRule{
