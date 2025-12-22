@@ -980,9 +980,10 @@ func TestTransferGlobalRuleComplexConfig(t *testing.T) {
 	var responseRewriteRule *GlobalRule
 
 	for _, gr := range kineGlobalRules {
-		if gr.ID == "limit-count" {
+		switch gr.ID {
+		case "limit-count":
 			limitCountRule = gr
-		} else if gr.ID == "response-rewrite" {
+		case "response-rewrite":
 			responseRewriteRule = gr
 		}
 	}

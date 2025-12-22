@@ -7,6 +7,10 @@ import (
 	"github.com/apache/apisix-ingress-controller/internal/controller/label"
 )
 
+const (
+	testRouteID = "route-1"
+)
+
 func TestNewMemDBCache(t *testing.T) {
 	cache, err := NewMemDBCache()
 	if err != nil {
@@ -26,7 +30,7 @@ func TestCacheRoute(t *testing.T) {
 	// Create a test route
 	route := &Route{
 		Metadata: adc.Metadata{
-			ID:   "route-1",
+			ID:   testRouteID,
 			Name: "test-route",
 			Labels: map[string]string{
 				label.LabelKind:      "Ingress",
@@ -45,12 +49,12 @@ func TestCacheRoute(t *testing.T) {
 	}
 
 	// Test Get
-	retrieved, err := cache.GetRoute("route-1")
+	retrieved, err := cache.GetRoute(testRouteID)
 	if err != nil {
 		t.Fatalf("Failed to get route: %v", err)
 	}
-	if retrieved.ID != "route-1" {
-		t.Errorf("Expected ID 'route-1', got '%s'", retrieved.ID)
+	if retrieved.ID != testRouteID {
+		t.Errorf("Expected ID %q, got %q", testRouteID, retrieved.ID)
 	}
 	if retrieved.Name != "test-route" {
 		t.Errorf("Expected Name 'test-route', got '%s'", retrieved.Name)
@@ -72,7 +76,7 @@ func TestCacheRoute(t *testing.T) {
 	}
 
 	// Verify deletion
-	_, err = cache.GetRoute("route-1")
+	_, err = cache.GetRoute(testRouteID)
 	if err != ErrNotFound {
 		t.Error("Expected ErrNotFound after deletion")
 	}
@@ -287,8 +291,8 @@ func TestCacheListWithLabelSelector(t *testing.T) {
 	// Insert routes with different labels
 	route1 := &Route{
 		Metadata: adc.Metadata{
-			ID:   "route-1",
-			Name: "route-1",
+			ID:   testRouteID,
+			Name: testRouteID,
 			Labels: map[string]string{
 				label.LabelKind:      "Ingress",
 				label.LabelNamespace: "default",
@@ -324,9 +328,15 @@ func TestCacheListWithLabelSelector(t *testing.T) {
 		URIs: []string{"/api3"},
 	}
 
-	cache.InsertRoute(route1)
-	cache.InsertRoute(route2)
-	cache.InsertRoute(route3)
+	if err := cache.InsertRoute(route1); err != nil {
+		t.Fatalf("Failed to insert route1: %v", err)
+	}
+	if err := cache.InsertRoute(route2); err != nil {
+		t.Fatalf("Failed to insert route2: %v", err)
+	}
+	if err := cache.InsertRoute(route3); err != nil {
+		t.Fatalf("Failed to insert route3: %v", err)
+	}
 
 	// List all routes
 	allRoutes, err := cache.ListRoutes()
@@ -350,8 +360,8 @@ func TestCacheListWithLabelSelector(t *testing.T) {
 	if len(filteredRoutes) != 1 {
 		t.Errorf("Expected 1 route, got %d", len(filteredRoutes))
 	}
-	if filteredRoutes[0].ID != "route-1" {
-		t.Errorf("Expected route-1, got %s", filteredRoutes[0].ID)
+	if filteredRoutes[0].ID != testRouteID {
+		t.Errorf("Expected %s, got %s", testRouteID, filteredRoutes[0].ID)
 	}
 }
 
@@ -364,7 +374,7 @@ func TestCacheGenericInsertDelete(t *testing.T) {
 	// Test generic Insert
 	route := &Route{
 		Metadata: adc.Metadata{
-			ID:   "route-1",
+			ID:   testRouteID,
 			Name: "test-route",
 		},
 		URIs: []string{"/test"},
@@ -376,12 +386,12 @@ func TestCacheGenericInsertDelete(t *testing.T) {
 	}
 
 	// Verify insertion
-	retrieved, err := cache.GetRoute("route-1")
+	retrieved, err := cache.GetRoute(testRouteID)
 	if err != nil {
 		t.Fatalf("Failed to get route: %v", err)
 	}
-	if retrieved.ID != "route-1" {
-		t.Errorf("Expected ID 'route-1', got '%s'", retrieved.ID)
+	if retrieved.ID != testRouteID {
+		t.Errorf("Expected ID %q, got %q", testRouteID, retrieved.ID)
 	}
 
 	// Test generic Delete
@@ -391,7 +401,7 @@ func TestCacheGenericInsertDelete(t *testing.T) {
 	}
 
 	// Verify deletion
-	_, err = cache.GetRoute("route-1")
+	_, err = cache.GetRoute(testRouteID)
 	if err != ErrNotFound {
 		t.Error("Expected ErrNotFound after deletion")
 	}
@@ -406,7 +416,7 @@ func TestCacheUpdate(t *testing.T) {
 	// Insert initial route
 	route := &Route{
 		Metadata: adc.Metadata{
-			ID:   "route-1",
+			ID:   testRouteID,
 			Name: "test-route",
 		},
 		URIs: []string{"/api"},
@@ -420,7 +430,7 @@ func TestCacheUpdate(t *testing.T) {
 	// Update route (insert with same ID)
 	updatedRoute := &Route{
 		Metadata: adc.Metadata{
-			ID:   "route-1",
+			ID:   testRouteID,
 			Name: "updated-route",
 		},
 		URIs: []string{"/api/v2"},
@@ -432,12 +442,12 @@ func TestCacheUpdate(t *testing.T) {
 	}
 
 	// Verify update
-	retrieved, err := cache.GetRoute("route-1")
+	retrieved, err := cache.GetRoute(testRouteID)
 	if err != nil {
 		t.Fatalf("Failed to get route: %v", err)
 	}
 	if retrieved.Name != "updated-route" {
-		t.Errorf("Expected Name 'updated-route', got '%s'", retrieved.Name)
+		t.Errorf("Expected Name 'updated-route', got %q", retrieved.Name)
 	}
 	if len(retrieved.URIs) != 1 || retrieved.URIs[0] != "/api/v2" {
 		t.Error("Route URIs not updated correctly")
