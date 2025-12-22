@@ -23,11 +23,11 @@ const (
 type ResourceType string
 
 const (
-	ResourceTypeRoute      ResourceType = "route"
-	ResourceTypeService    ResourceType = "service"
-	ResourceTypeUpstream   ResourceType = "upstream"
-	ResourceTypeSSL        ResourceType = "ssl"
-	ResourceTypeGlobalRule ResourceType = "global_rule"
+	ResourceTypeRoute      ResourceType = "routes"
+	ResourceTypeService    ResourceType = "services"
+	ResourceTypeUpstream   ResourceType = "upstreams"
+	ResourceTypeSSL        ResourceType = "ssls"
+	ResourceTypeGlobalRule ResourceType = "global_rules"
 )
 
 // Event represents a change event for a resource
