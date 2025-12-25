@@ -571,7 +571,10 @@ func (t *Translator) TranslateHTTPRoute(tctx *provider.TranslateContext, httpRou
 
 			t.AttachBackendTrafficPolicyToUpstream(backend.BackendRef, tctx.BackendTrafficPolicies, upstream)
 			upstream.Nodes = upNodes
-			upstream.Scheme = appProtocolToUpstreamScheme(protocol)
+			// Only set scheme from appProtocol if not already set by BackendTrafficPolicy
+			if upstream.Scheme == "" {
+				upstream.Scheme = appProtocolToUpstreamScheme(protocol)
+			}
 			var (
 				kind string
 				port int32

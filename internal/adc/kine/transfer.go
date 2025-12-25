@@ -227,6 +227,8 @@ func convertPassHost(passHost string) UpstreamPassHost {
 		return UpstreamPassHostPass
 	case "rewrite":
 		return UpstreamPassHostRewrite
+	case "node":
+		return UpstreamPassHostNode
 	default:
 		return UpstreamPassHostPass
 	}

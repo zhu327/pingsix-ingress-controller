@@ -67,6 +67,7 @@ type UpstreamPassHost string
 const (
 	UpstreamPassHostPass    UpstreamPassHost = "pass"
 	UpstreamPassHostRewrite UpstreamPassHost = "rewrite"
+	UpstreamPassHostNode    UpstreamPassHost = "node"
 )
 
 // Timeout represents timeout configuration
