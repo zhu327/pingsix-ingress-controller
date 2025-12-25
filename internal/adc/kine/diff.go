@@ -57,6 +57,7 @@ type Differ interface {
 type TransferredResources struct {
 	Routes      []*Route
 	Services    []*Service
+	Upstreams   []*Upstream
 	SSLs        []*SSL
 	GlobalRules []*GlobalRule
 }
@@ -112,6 +113,15 @@ func (d *differ) Diff(newResources *TransferredResources, opts *DiffOptions) ([]
 			return nil, fmt.Errorf("failed to diff services: %w", err)
 		}
 		events = append(events, serviceEvents...)
+	}
+
+	// Diff upstreams
+	if len(typesToDiff) == 0 || typesToDiff[string(ResourceTypeUpstream)] {
+		upstreamEvents, err := d.diffUpstreams(newResources.Upstreams, listOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to diff upstreams: %w", err)
+		}
+		events = append(events, upstreamEvents...)
 	}
 
 	// Diff SSLs
@@ -264,6 +274,69 @@ func (d *differ) diffServices(newServices []*Service, listOpts []ListOption) ([]
 	return events, nil
 }
 
+// diffUpstreams compares new upstreams with cached upstreams
+func (d *differ) diffUpstreams(newUpstreams []*Upstream, listOpts []ListOption) ([]Event, error) {
+	// Get cached upstreams
+	cachedUpstreams, err := d.cache.ListUpstreams(listOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list cached upstreams: %w", err)
+	}
+
+	// Build maps for comparison
+	newMap := make(map[string]*Upstream)
+	for _, upstream := range newUpstreams {
+		newMap[upstream.ID] = upstream
+	}
+
+	cachedMap := make(map[string]*Upstream)
+	for _, upstream := range cachedUpstreams {
+		cachedMap[upstream.ID] = upstream
+	}
+
+	var events []Event
+
+	// Find CREATE and UPDATE events
+	for id, newUpstream := range newMap {
+		if cachedUpstream, exists := cachedMap[id]; exists {
+			// Check if update is needed
+			if !areUpstreamsEqual(cachedUpstream, newUpstream) {
+				events = append(events, Event{
+					Type:         EventTypeUpdate,
+					ResourceType: ResourceTypeUpstream,
+					ResourceID:   id,
+					ResourceName: newUpstream.Name,
+					OldValue:     cachedUpstream,
+					NewValue:     newUpstream,
+				})
+			}
+		} else {
+			// Create new upstream
+			events = append(events, Event{
+				Type:         EventTypeCreate,
+				ResourceType: ResourceTypeUpstream,
+				ResourceID:   id,
+				ResourceName: newUpstream.Name,
+				NewValue:     newUpstream,
+			})
+		}
+	}
+
+	// Find DELETE events
+	for id, cachedUpstream := range cachedMap {
+		if _, exists := newMap[id]; !exists {
+			events = append(events, Event{
+				Type:         EventTypeDelete,
+				ResourceType: ResourceTypeUpstream,
+				ResourceID:   id,
+				ResourceName: cachedUpstream.Name,
+				OldValue:     cachedUpstream,
+			})
+		}
+	}
+
+	return events, nil
+}
+
 // diffSSLs compares new SSLs with cached SSLs
 func (d *differ) diffSSLs(newSSLs []*SSL, listOpts []ListOption) ([]Event, error) {
 	// Get cached SSLs
@@ -402,6 +475,11 @@ func areServicesEqual(a, b *Service) bool {
 	return cmp.Equal(a, b)
 }
 
+// areUpstreamsEqual compares two upstreams for equality using go-cmp
+func areUpstreamsEqual(a, b *Upstream) bool {
+	return cmp.Equal(a, b)
+}
+
 // areSSLsEqual compares two SSLs for equality using go-cmp
 func areSSLsEqual(a, b *SSL) bool {
 	return cmp.Equal(a, b)
@@ -475,7 +553,7 @@ func TransferResources(resources *adc.Resources) (*TransferredResources, error) 
 
 	// Transfer services (which includes routes and upstream)
 	for _, adcService := range resources.Services {
-		kineService, kineRoutes, err := TransferService(adcService)
+		kineService, kineRoutes, kineUpstreams, err := TransferService(adcService)
 		if err != nil {
 			return nil, fmt.Errorf("failed to transfer service %s: %w", adcService.Name, err)
 		}
@@ -483,6 +561,8 @@ func TransferResources(resources *adc.Resources) (*TransferredResources, error) 
 			result.Services = append(result.Services, kineService)
 		}
 		result.Routes = append(result.Routes, kineRoutes...)
+
+		result.Upstreams = append(result.Upstreams, kineUpstreams...)
 	}
 
 	// Transfer SSLs

@@ -67,7 +67,7 @@ func TestTransferService(t *testing.T) {
 	}
 
 	// Test TransferService
-	kineSvc, kineRoutes, err := TransferService(adcSvc)
+	kineSvc, kineRoutes, _, err := TransferService(adcSvc)
 	if err != nil {
 		t.Fatalf("TransferService failed: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestTransferServiceWithCustomID(t *testing.T) {
 		},
 	}
 
-	kineSvc, kineRoutes, err := TransferService(adcSvc)
+	kineSvc, kineRoutes, _, err := TransferService(adcSvc)
 	if err != nil {
 		t.Fatalf("TransferService failed: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestTransferServiceNilUpstream(t *testing.T) {
 		Upstream: nil,
 	}
 
-	_, _, err := TransferService(adcSvc)
+	_, _, _, err := TransferService(adcSvc)
 	if err == nil {
 		t.Error("Expected error for nil upstream")
 	}
@@ -357,7 +357,14 @@ func TestConvertUpstreamWithoutID(t *testing.T) {
 		Scheme: "http",
 	}
 
-	result := convertUpstream(adcUpstream)
+	// Create a service to pass to convertUpstream
+	adcSvc := &adc.Service{
+		Metadata: adc.Metadata{
+			Name: "test-service",
+		},
+	}
+
+	result := convertUpstream(adcUpstream, adcSvc)
 
 	if result == nil {
 		t.Fatal("Result should not be nil")
@@ -387,7 +394,14 @@ func TestConvertUpstreamWithID(t *testing.T) {
 		Scheme: "http",
 	}
 
-	result := convertUpstream(adcUpstream)
+	// Create a service to pass to convertUpstream
+	adcSvc := &adc.Service{
+		Metadata: adc.Metadata{
+			Name: "test-service",
+		},
+	}
+
+	result := convertUpstream(adcUpstream, adcSvc)
 
 	if result == nil {
 		t.Fatal("Result should not be nil")
@@ -437,7 +451,14 @@ func TestConvertUpstreamWithHealthCheck(t *testing.T) {
 		},
 	}
 
-	result := convertUpstream(adcUpstream)
+	// Create a service to pass to convertUpstream
+	adcSvc := &adc.Service{
+		Metadata: adc.Metadata{
+			Name: "test-service",
+		},
+	}
+
+	result := convertUpstream(adcUpstream, adcSvc)
 
 	if result == nil {
 		t.Fatal("Result should not be nil")

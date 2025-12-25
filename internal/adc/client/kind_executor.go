@@ -187,6 +187,7 @@ func (e *KindExecutor) convertADCTypesToKineTypes(adcTypes []string) []string {
 			// ADC Service transfers to both Kine Service and Route
 			kineTypesSet[string(kine.ResourceTypeService)] = true
 			kineTypesSet[string(kine.ResourceTypeRoute)] = true
+			kineTypesSet[string(kine.ResourceTypeUpstream)] = true
 		case adctypes.TypeSSL:
 			kineTypesSet[string(kine.ResourceTypeSSL)] = true
 		case adctypes.TypeGlobalRule:

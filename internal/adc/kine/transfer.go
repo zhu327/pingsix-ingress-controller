@@ -10,14 +10,14 @@ import (
 )
 
 // TransferService converts an ADC Service to Kine Service and Routes
-func TransferService(adcSvc *adc.Service) (*Service, []*Route, error) {
+func TransferService(adcSvc *adc.Service) (*Service, []*Route, []*Upstream, error) {
 	if adcSvc == nil {
-		return nil, nil, fmt.Errorf("adc service is nil")
+		return nil, nil, nil, fmt.Errorf("adc service is nil")
 	}
 
 	// Ignore Upstreams, only use Upstream
 	if adcSvc.Upstream == nil {
-		return nil, nil, fmt.Errorf("adc service upstream is nil")
+		return nil, nil, nil, fmt.Errorf("adc service upstream is nil")
 	}
 
 	// Convert ADC Service to Kine Service
@@ -29,7 +29,7 @@ func TransferService(adcSvc *adc.Service) (*Service, []*Route, error) {
 			Labels: copyLabels(adcSvc.Labels),
 		},
 		Plugins:  convertPlugins(adcSvc.Plugins),
-		Upstream: convertUpstream(adcSvc.Upstream),
+		Upstream: convertUpstream(adcSvc.Upstream, adcSvc),
 		Hosts:    copyStringSlice(adcSvc.Hosts),
 	}
 
@@ -38,12 +38,21 @@ func TransferService(adcSvc *adc.Service) (*Service, []*Route, error) {
 	for _, adcRoute := range adcSvc.Routes {
 		kineRoute, err := convertRoute(adcRoute, adcSvc)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert route: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to convert route: %w", err)
 		}
 		kineRoutes = append(kineRoutes, kineRoute)
 	}
 
-	return kineSvc, kineRoutes, nil
+	// Convert ADC Upstream to Kine Upstream
+	kineUpstreams := make([]*Upstream, 0, len(adcSvc.Upstreams))
+	if adcSvc.Upstreams != nil {
+		for _, adcUpstream := range adcSvc.Upstreams {
+			kineUpstream := convertUpstream(adcUpstream, adcSvc)
+			kineUpstreams = append(kineUpstreams, kineUpstream)
+		}
+	}
+
+	return kineSvc, kineRoutes, kineUpstreams, nil
 }
 
 // generateServiceID generates service ID from name using SHA1
@@ -103,7 +112,7 @@ func convertRoute(adcRoute *adc.Route, adcSvc *adc.Service) (*Route, error) {
 }
 
 // convertUpstream converts ADC Upstream to Kine Upstream
-func convertUpstream(adcUpstream *adc.Upstream) *Upstream {
+func convertUpstream(adcUpstream *adc.Upstream, adcSvc *adc.Service) *Upstream {
 	if adcUpstream == nil {
 		return nil
 	}
@@ -119,7 +128,7 @@ func convertUpstream(adcUpstream *adc.Upstream) *Upstream {
 			ID:     upstreamID,
 			Name:   adcUpstream.Name,
 			Desc:   adcUpstream.Desc,
-			Labels: copyLabels(adcUpstream.Labels),
+			Labels: copyLabels(adcSvc.Labels),
 		},
 		Nodes:    convertNodes(adcUpstream.Nodes),
 		Type:     convertUpstreamType(adcUpstream.Type),
