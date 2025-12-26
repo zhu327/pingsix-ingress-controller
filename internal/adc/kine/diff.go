@@ -492,24 +492,26 @@ func areGlobalRulesEqual(a, b *GlobalRule) bool {
 
 // sortEvents sorts events by execution order
 // Order:
-// 1. DELETE events (reverse dependency order: Route -> Service -> SSL -> GlobalRule)
-// 2. UPDATE events (same as DELETE order: Route -> Service -> SSL -> GlobalRule)
-// 3. CREATE events (forward dependency order: GlobalRule -> SSL -> Service -> Route)
+// 1. DELETE events (reverse dependency order: Route -> Service -> Upstream -> SSL -> GlobalRule)
+// 2. UPDATE events (same as DELETE order: Route -> Service -> Upstream -> SSL -> GlobalRule)
+// 3. CREATE events (forward dependency order: GlobalRule -> SSL -> Upstream -> Service -> Route)
 func sortEvents(events []Event) {
 	// Define order priority for each resource type
 	// DELETE and UPDATE use the same order (reverse dependency order)
 	deleteUpdateOrder := map[ResourceType]int{
 		ResourceTypeRoute:      0,
 		ResourceTypeService:    1,
-		ResourceTypeSSL:        2,
-		ResourceTypeGlobalRule: 3,
+		ResourceTypeUpstream:   2,
+		ResourceTypeSSL:        3,
+		ResourceTypeGlobalRule: 4,
 	}
 
 	createOrder := map[ResourceType]int{
 		ResourceTypeGlobalRule: 0,
 		ResourceTypeSSL:        1,
-		ResourceTypeService:    2,
-		ResourceTypeRoute:      3,
+		ResourceTypeUpstream:   2,
+		ResourceTypeService:    3,
+		ResourceTypeRoute:      4,
 	}
 
 	sort.Slice(events, func(i, j int) bool {

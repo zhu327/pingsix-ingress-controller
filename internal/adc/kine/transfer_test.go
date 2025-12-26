@@ -205,6 +205,256 @@ func TestTransferServiceNilUpstream(t *testing.T) {
 	}
 }
 
+func TestTransferServiceWithUpstreams(t *testing.T) {
+	// Test service with both Upstream and Upstreams fields
+	adcSvc := &adc.Service{
+		Metadata: adc.Metadata{
+			ID:   "service1",
+			Name: "test-service",
+			Labels: map[string]string{
+				"k8s/kind":      "Service",
+				"k8s/namespace": "default",
+				"k8s/name":      "test",
+			},
+		},
+		Upstream: &adc.Upstream{
+			Metadata: adc.Metadata{
+				Name: "default-upstream",
+			},
+			Nodes: adc.UpstreamNodes{
+				{Host: "127.0.0.1", Port: 8080, Weight: 100},
+			},
+			Type: adc.Roundrobin,
+		},
+		Upstreams: []*adc.Upstream{
+			{
+				Metadata: adc.Metadata{
+					ID:   "upstream1",
+					Name: "named-upstream-1",
+				},
+				Nodes: adc.UpstreamNodes{
+					{Host: "192.168.1.1", Port: 8080, Weight: 100},
+					{Host: "192.168.1.2", Port: 8080, Weight: 50},
+				},
+				Type:   adc.Roundrobin,
+				Scheme: "http",
+			},
+			{
+				Metadata: adc.Metadata{
+					Name: "named-upstream-2",
+				},
+				Nodes: adc.UpstreamNodes{
+					{Host: "10.0.0.1", Port: 9090, Weight: 80},
+				},
+				Type:   adc.Random,
+				Scheme: "https",
+			},
+		},
+		Routes: []*adc.Route{
+			{
+				Metadata: adc.Metadata{
+					Name: "route1",
+				},
+				Uris: []string{"/api"},
+			},
+		},
+	}
+
+	kineSvc, kineRoutes, kineUpstreams, err := TransferService(adcSvc)
+	if err != nil {
+		t.Fatalf("TransferService failed: %v", err)
+	}
+
+	// Verify Service
+	if kineSvc == nil {
+		t.Fatal("kineSvc is nil")
+	}
+
+	// Verify that service contains the default upstream
+	if kineSvc.Upstream == nil {
+		t.Error("Service upstream should not be nil")
+	}
+
+	// Verify Routes
+	if len(kineRoutes) != 1 {
+		t.Errorf("Expected 1 route, got %d", len(kineRoutes))
+	}
+
+	// Verify Upstreams - should have 2 upstreams from Upstreams field
+	if len(kineUpstreams) != 2 {
+		t.Fatalf("Expected 2 upstreams, got %d", len(kineUpstreams))
+	}
+
+	// Check first upstream
+	upstream1 := kineUpstreams[0]
+	if upstream1.ID != "upstream1" {
+		t.Errorf("Expected upstream ID 'upstream1', got '%s'", upstream1.ID)
+	}
+	if upstream1.Name != "named-upstream-1" {
+		t.Errorf("Expected upstream name 'named-upstream-1', got '%s'", upstream1.Name)
+	}
+	if len(upstream1.Nodes) != 2 {
+		t.Errorf("Expected 2 nodes in upstream1, got %d", len(upstream1.Nodes))
+	}
+	if upstream1.Type != SelectionTypeRoundRobin {
+		t.Errorf("Expected type roundrobin, got %s", upstream1.Type)
+	}
+	if upstream1.Scheme != UpstreamSchemeHTTP {
+		t.Errorf("Expected scheme http, got %s", upstream1.Scheme)
+	}
+
+	// Check second upstream (ID should be generated from name)
+	upstream2 := kineUpstreams[1]
+	expectedID := sha1Hash("named-upstream-2")
+	if upstream2.ID != expectedID {
+		t.Errorf("Expected upstream ID '%s', got '%s'", expectedID, upstream2.ID)
+	}
+	if upstream2.Name != "named-upstream-2" {
+		t.Errorf("Expected upstream name 'named-upstream-2', got '%s'", upstream2.Name)
+	}
+	if len(upstream2.Nodes) != 1 {
+		t.Errorf("Expected 1 node in upstream2, got %d", len(upstream2.Nodes))
+	}
+	if upstream2.Type != SelectionTypeRandom {
+		t.Errorf("Expected type random, got %s", upstream2.Type)
+	}
+	if upstream2.Scheme != UpstreamSchemeHTTPS {
+		t.Errorf("Expected scheme https, got %s", upstream2.Scheme)
+	}
+}
+
+func TestTransferServiceWithEmptyUpstreams(t *testing.T) {
+	// Test service with Upstream but empty Upstreams
+	adcSvc := &adc.Service{
+		Metadata: adc.Metadata{
+			Name: "test-service",
+		},
+		Upstream: &adc.Upstream{
+			Metadata: adc.Metadata{
+				Name: "default-upstream",
+			},
+			Nodes: adc.UpstreamNodes{
+				{Host: "127.0.0.1", Port: 8080, Weight: 100},
+			},
+			Type: adc.Roundrobin,
+		},
+		Upstreams: nil,
+		Routes: []*adc.Route{
+			{
+				Metadata: adc.Metadata{
+					Name: "route1",
+				},
+				Uris: []string{"/test"},
+			},
+		},
+	}
+
+	kineSvc, kineRoutes, kineUpstreams, err := TransferService(adcSvc)
+	if err != nil {
+		t.Fatalf("TransferService failed: %v", err)
+	}
+
+	if kineSvc == nil {
+		t.Fatal("kineSvc is nil")
+	}
+
+	if len(kineRoutes) != 1 {
+		t.Errorf("Expected 1 route, got %d", len(kineRoutes))
+	}
+
+	// Should have 0 upstreams when Upstreams field is nil
+	if len(kineUpstreams) != 0 {
+		t.Errorf("Expected 0 upstreams, got %d", len(kineUpstreams))
+	}
+
+	// But service should still have its default upstream
+	if kineSvc.Upstream == nil {
+		t.Error("Service upstream should not be nil")
+	}
+}
+
+func TestTransferServiceUpstreamLabels(t *testing.T) {
+	// Test that upstreams inherit labels from service
+	adcSvc := &adc.Service{
+		Metadata: adc.Metadata{
+			Name: "test-service",
+			Labels: map[string]string{
+				"k8s/kind":      "Service",
+				"k8s/namespace": "production",
+				"k8s/name":      "api-service",
+				"app":           "myapp",
+			},
+		},
+		Upstream: &adc.Upstream{
+			Metadata: adc.Metadata{
+				Name: "default-upstream",
+			},
+			Nodes: adc.UpstreamNodes{
+				{Host: "127.0.0.1", Port: 8080, Weight: 100},
+			},
+			Type: adc.Roundrobin,
+		},
+		Upstreams: []*adc.Upstream{
+			{
+				Metadata: adc.Metadata{
+					Name: "named-upstream",
+					// Upstream labels are not currently merged with service labels
+					// The convertUpstream function copies service labels to upstream
+					Labels: map[string]string{
+						"env": "prod",
+					},
+				},
+				Nodes: adc.UpstreamNodes{
+					{Host: "192.168.1.1", Port: 8080, Weight: 100},
+				},
+				Type: adc.Roundrobin,
+			},
+		},
+		Routes: []*adc.Route{
+			{
+				Metadata: adc.Metadata{
+					Name: "route1",
+				},
+				Uris: []string{"/test"},
+			},
+		},
+	}
+
+	_, _, kineUpstreams, err := TransferService(adcSvc)
+	if err != nil {
+		t.Fatalf("TransferService failed: %v", err)
+	}
+
+	if len(kineUpstreams) != 1 {
+		t.Fatalf("Expected 1 upstream, got %d", len(kineUpstreams))
+	}
+
+	upstream := kineUpstreams[0]
+
+	// Check that upstream has labels inherited from service
+	if upstream.Labels == nil {
+		t.Fatal("Upstream labels should not be nil")
+	}
+
+	// convertUpstream copies service labels to upstream (overwrites upstream's own labels)
+	// So we expect the upstream to have service labels, not its own labels
+	if upstream.Labels["k8s/kind"] != "Service" {
+		t.Error("Expected upstream to inherit 'k8s/kind' label from service")
+	}
+	if upstream.Labels["k8s/namespace"] != "production" {
+		t.Error("Expected upstream to inherit 'k8s/namespace' label from service")
+	}
+	if upstream.Labels["k8s/name"] != "api-service" {
+		t.Error("Expected upstream to inherit 'k8s/name' label from service")
+	}
+	if upstream.Labels["app"] != "myapp" {
+		t.Error("Expected upstream to inherit 'app' label from service")
+	}
+
+	// Note: The upstream's own "env" label is overwritten by service labels
+	// This is the current behavior of convertUpstream function
+}
+
 func TestSha1Hash(t *testing.T) {
 	tests := []struct {
 		input    string
