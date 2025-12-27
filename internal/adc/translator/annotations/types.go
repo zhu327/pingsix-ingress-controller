@@ -24,8 +24,8 @@ const (
 	AnnotationsPrefix = "k8s.apisix.apache.org/"
 
 	// Supported annotations
-	AnnotationsUseRegex         = AnnotationsPrefix + "use-regex"
-	AnnotationsEnableWebSocket  = AnnotationsPrefix + "enable-websocket"
+	AnnotationsUseRegex         = AnnotationsPrefix + "use-regex"        // pingsix not support
+	AnnotationsEnableWebSocket  = AnnotationsPrefix + "enable-websocket" // pingsix not support
 	AnnotationsPluginConfigName = AnnotationsPrefix + "plugin-config-name"
 	AnnotationsUpstreamScheme   = AnnotationsPrefix + "upstream-scheme"
 
@@ -46,7 +46,7 @@ const (
 	AnnotationsCorsAllowMethods = AnnotationsPrefix + "cors-allow-methods"
 
 	// csrf plugin
-	AnnotationsEnableCsrf = AnnotationsPrefix + "enable-csrf"
+	AnnotationsEnableCsrf = AnnotationsPrefix + "enable-csrf" // pingsix not support
 	AnnotationsCsrfKey    = AnnotationsPrefix + "csrf-key"
 
 	// redirect plugin
@@ -60,7 +60,7 @@ const (
 	AnnotationsRewriteTargetRegexTemplate = AnnotationsPrefix + "rewrite-target-regex-template"
 
 	// response-rewrite plugin
-	AnnotationsEnableResponseRewrite       = AnnotationsPrefix + "enable-response-rewrite"
+	AnnotationsEnableResponseRewrite       = AnnotationsPrefix + "enable-response-rewrite" // pingsix not support
 	AnnotationsResponseRewriteStatusCode   = AnnotationsPrefix + "response-rewrite-status-code"
 	AnnotationsResponseRewriteBody         = AnnotationsPrefix + "response-rewrite-body"
 	AnnotationsResponseRewriteBodyBase64   = AnnotationsPrefix + "response-rewrite-body-base64"
@@ -69,7 +69,7 @@ const (
 	AnnotationsResponseRewriteHeaderRemove = AnnotationsPrefix + "response-rewrite-remove-header"
 
 	// forward-auth plugin
-	AnnotationsForwardAuthURI             = AnnotationsPrefix + "auth-uri"
+	AnnotationsForwardAuthURI             = AnnotationsPrefix + "auth-uri" // pingsix not support
 	AnnotationsForwardAuthSSLVerify       = AnnotationsPrefix + "auth-ssl-verify"
 	AnnotationsForwardAuthRequestHeaders  = AnnotationsPrefix + "auth-request-headers"
 	AnnotationsForwardAuthUpstreamHeaders = AnnotationsPrefix + "auth-upstream-headers"
@@ -80,15 +80,18 @@ const (
 	AnnotationsBlocklistSourceRange = AnnotationsPrefix + "blocklist-source-range"
 
 	// http-method plugin
-	AnnotationsHttpAllowMethods = AnnotationsPrefix + "http-allow-methods"
+	AnnotationsHttpAllowMethods = AnnotationsPrefix + "http-allow-methods" // pingsix not support
 	AnnotationsHttpBlockMethods = AnnotationsPrefix + "http-block-methods"
 
 	// key-auth plugin and basic-auth plugin
 	// auth-type: keyAuth | basicAuth
-	AnnotationsAuthType = AnnotationsPrefix + "auth-type"
+	AnnotationsAuthType = AnnotationsPrefix + "auth-type" // need modify config with pingsix
 
 	// support backend service cross namespace
 	AnnotationsSvcNamespace = AnnotationsPrefix + "svc-namespace"
+
+	// NOTE: PingSIX may support CSRF and Basic Authentication in the future.
+	// NOTE: key-auth and basic-auth need to read configuration directly from annotations.
 )
 
 const (
