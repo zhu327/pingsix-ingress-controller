@@ -36,7 +36,10 @@ func (b *basicAuth) Handle(e annotations.Extractor) (any, error) {
 	if e.GetStringAnnotation(annotations.AnnotationsAuthType) != "basicAuth" {
 		return nil, nil
 	}
-	plugin := adctypes.BasicAuthConfig{}
+	plugin := adctypes.BasicAuthConfig{
+		Username: e.GetStringAnnotation(annotations.AnnotationsBasicAuthUsername),
+		Password: e.GetStringAnnotation(annotations.AnnotationsBasicAuthPassword),
+	}
 	return &plugin, nil
 }
 
@@ -56,6 +59,10 @@ func (k *keyAuth) Handle(e annotations.Extractor) (any, error) {
 	if e.GetStringAnnotation(annotations.AnnotationsAuthType) != "keyAuth" {
 		return nil, nil
 	}
-	plugin := adctypes.KeyAuthConfig{}
+	plugin := adctypes.KeyAuthConfig{
+		Header: e.GetStringAnnotation(annotations.AnnotationsKeyAuthHeader),
+		Query:  e.GetStringAnnotation(annotations.AnnotationsKeyAuthQuery),
+		Key:    e.GetStringAnnotation(annotations.AnnotationsKeyAuthKey),
+	}
 	return &plugin, nil
 }

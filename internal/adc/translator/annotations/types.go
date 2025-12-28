@@ -46,7 +46,7 @@ const (
 	AnnotationsCorsAllowMethods = AnnotationsPrefix + "cors-allow-methods"
 
 	// csrf plugin
-	AnnotationsEnableCsrf = AnnotationsPrefix + "enable-csrf" // pingsix not support
+	AnnotationsEnableCsrf = AnnotationsPrefix + "enable-csrf"
 	AnnotationsCsrfKey    = AnnotationsPrefix + "csrf-key"
 
 	// redirect plugin
@@ -60,10 +60,10 @@ const (
 	AnnotationsRewriteTargetRegexTemplate = AnnotationsPrefix + "rewrite-target-regex-template"
 
 	// response-rewrite plugin
-	AnnotationsEnableResponseRewrite       = AnnotationsPrefix + "enable-response-rewrite" // pingsix not support
+	AnnotationsEnableResponseRewrite       = AnnotationsPrefix + "enable-response-rewrite"
 	AnnotationsResponseRewriteStatusCode   = AnnotationsPrefix + "response-rewrite-status-code"
-	AnnotationsResponseRewriteBody         = AnnotationsPrefix + "response-rewrite-body"
-	AnnotationsResponseRewriteBodyBase64   = AnnotationsPrefix + "response-rewrite-body-base64"
+	AnnotationsResponseRewriteBody         = AnnotationsPrefix + "response-rewrite-body"        // pingsix not support
+	AnnotationsResponseRewriteBodyBase64   = AnnotationsPrefix + "response-rewrite-body-base64" // pingsix not support
 	AnnotationsResponseRewriteHeaderAdd    = AnnotationsPrefix + "response-rewrite-add-header"
 	AnnotationsResponseRewriteHeaderSet    = AnnotationsPrefix + "response-rewrite-set-header"
 	AnnotationsResponseRewriteHeaderRemove = AnnotationsPrefix + "response-rewrite-remove-header"
@@ -85,13 +85,15 @@ const (
 
 	// key-auth plugin and basic-auth plugin
 	// auth-type: keyAuth | basicAuth
-	AnnotationsAuthType = AnnotationsPrefix + "auth-type" // need modify config with pingsix
+	AnnotationsAuthType          = AnnotationsPrefix + "auth-type"
+	AnnotationsKeyAuthHeader     = AnnotationsPrefix + "key-auth-header"
+	AnnotationsKeyAuthQuery      = AnnotationsPrefix + "key-auth-query"
+	AnnotationsKeyAuthKey        = AnnotationsPrefix + "key-auth-key"
+	AnnotationsBasicAuthUsername = AnnotationsPrefix + "basic-auth-username"
+	AnnotationsBasicAuthPassword = AnnotationsPrefix + "basic-auth-password"
 
 	// support backend service cross namespace
 	AnnotationsSvcNamespace = AnnotationsPrefix + "svc-namespace"
-
-	// NOTE: PingSIX may support CSRF and Basic Authentication in the future.
-	// NOTE: key-auth and basic-auth need to read configuration directly from annotations.
 )
 
 const (

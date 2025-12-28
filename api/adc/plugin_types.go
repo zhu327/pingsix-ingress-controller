@@ -127,9 +127,14 @@ type ForwardAuthConfig struct {
 // BasicAuthConfig is the rule config for basic-auth plugin.
 // +k8s:deepcopy-gen=true
 type BasicAuthConfig struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 // KeyAuthConfig is the rule config for key-auth plugin.
 // +k8s:deepcopy-gen=true
 type KeyAuthConfig struct {
+	Header string `json:"header,omitempty"`
+	Query  string `json:"query,omitempty"`
+	Key    string `json:"key,omitempty"`
 }
