@@ -10,6 +10,7 @@ import (
 
 const (
 	exampleHost = "example.com"
+	upstream1   = "upstream1"
 )
 
 func TestDiffer_DiffRoutes(t *testing.T) {
@@ -248,7 +249,7 @@ func TestDiffer_DiffUpstreams(t *testing.T) {
 
 	var hasUpdate, hasCreate bool
 	for _, event := range events {
-		if event.Type == EventTypeUpdate && event.ResourceID == "upstream1" {
+		if event.Type == EventTypeUpdate && event.ResourceID == upstream1 {
 			hasUpdate = true
 		}
 		if event.Type == EventTypeCreate && event.ResourceID == "upstream2" {
@@ -257,7 +258,7 @@ func TestDiffer_DiffUpstreams(t *testing.T) {
 	}
 
 	if !hasUpdate {
-		t.Error("expected UPDATE event for upstream1")
+		t.Error("expected UPDATE event for " + upstream1)
 	}
 	if !hasCreate {
 		t.Error("expected CREATE event for upstream2")
@@ -318,8 +319,8 @@ func TestDiffer_DiffUpstreamsDelete(t *testing.T) {
 	if events[0].Type != EventTypeDelete {
 		t.Errorf("expected DELETE event, got %v", events[0].Type)
 	}
-	if events[0].ResourceID != "upstream1" {
-		t.Errorf("expected resource ID upstream1, got %v", events[0].ResourceID)
+	if events[0].ResourceID != upstream1 {
+		t.Errorf("expected resource ID %s, got %v", upstream1, events[0].ResourceID)
 	}
 	if events[0].ResourceType != ResourceTypeUpstream {
 		t.Errorf("expected resource type upstream, got %v", events[0].ResourceType)
